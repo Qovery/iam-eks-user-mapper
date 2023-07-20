@@ -9,7 +9,7 @@ variables:
   DOCKER_HOST: tcp://localhost:2375
   DOCKER_BUILDKIT: 1
   DOCKER_TLS_CERTDIR: ""
-  DOCKER_IMAGE_NAME: $AWS_PROD_ECR_PRIVATE_REGISTRY/iam-eks-user-mapper-rs
+  DOCKER_IMAGE_NAME: $AWS_PROD_ECR_PUBLIC_REGISTRY/iam-eks-user-mapper-rs
   IMAGE_TAG_NAME: $CI_COMMIT_SHORT_SHA
   IMAGE_COMMIT_SHA: $CI_COMMIT_SHA
   IMAGE_STORE: $CI_PROJECT_DIR/docker_image
@@ -18,6 +18,7 @@ stages:
   - scheduled
   - prechecks
   - build
+  - release
 
 audit:
   stage: prechecks
