@@ -108,11 +108,9 @@ async fn main() -> Result<(), errors::Error> {
         })?;
 
     let current_span = tracing::Span::current();
-
     let forever = task::spawn(async move {
         // making sure to pass the current span to the new thread not to lose any tracing info
         let _ = current_span.enter();
-
         let mut interval = time::interval(config.refresh_interval);
 
         loop {
