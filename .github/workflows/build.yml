@@ -1,0 +1,33 @@
+on: [push, pull_request]
+
+name: build
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        rust-toolchain: [stable]
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+
+      - name: install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust-toolchain }}
+          components: rustfmt
+          override: true
+
+      - name: verify versions
+        run: rustc --version && rustup --version && cargo --version
+
+      - name: format
+        run: cargo fmt --all -- --check --color=always  || (echo "Use cargo fmt to format your code"; exit 1)
+
+      - name: clippy
+        run: cargo clippy --all --all-features -- -D warnings || (echo "Solve your clippy errors to succeed"; exit 1) 
