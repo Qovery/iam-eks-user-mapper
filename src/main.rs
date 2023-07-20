@@ -28,7 +28,7 @@ struct Args {
     pub iam_k8s_groups: Vec<String>,
 }
 
-async fn copy_iam_eks_users(
+async fn sync_iam_eks_users(
     iam_client: &IamService,
     kubernetes_client: &KubernetesService,
     groups_names: Vec<&str>,
@@ -117,17 +117,17 @@ async fn main() -> Result<(), errors::Error> {
 
         loop {
             interval.tick().await;
-            info!("Starting to sync IAM EKS users");
-            if let Err(e) = copy_iam_eks_users(
+            info!("Syncing IAM EKS users");
+            if let Err(e) = sync_iam_eks_users(
                 &iam_client,
                 &kubernetes_client,
                 config.iam_k8s_groups.iter().map(|g| g.as_str()).collect(),
             )
             .await
             {
-                error!("Error while executing `copy_iam_eks_user`: {e}");
+                error!("Error while syncing IAM EKS users: {e}");
             };
-            info!("Sync of IAM EKS users is done");
+            info!("Syncing of IAM EKS users is done");
         }
     });
 
