@@ -111,10 +111,10 @@ async fn main() -> Result<(), errors::Error> {
     let forever = task::spawn(async move {
         // making sure to pass the current span to the new thread not to lose any tracing info
         let _ = current_span.enter();
-        let mut interval = time::interval(config.refresh_interval);
+        let mut tick_interval = time::interval(config.refresh_interval);
 
         loop {
-            interval.tick().await;
+            tick_interval.tick().await;
             info!("Syncing IAM EKS users");
             if let Err(e) = sync_iam_eks_users(
                 &iam_client,
