@@ -5,37 +5,40 @@ metadata:
   name: {{ include "iam-eks-user.fullname" . }}
   labels:
     {{- include "iam-eks-user.labels" . | nindent 4 }}
+  {{- with .Values.extraLabels }}
+  {{ toYaml . | indent 4 }}
+  {{- end }}
 spec:
   selector:
     matchLabels:
-      app: {{- include "iam-eks-user.selectorLabels" . | nindent 6 }}
-      version: v1
+      {{- include "iam-eks-user.selectorLabels" . | nindent 8 }}
   template:
     metadata:
       annotations:
-        iam.amazonaws.com/role: "{{ .Values.roleArn }}"
       labels:
-        app: {{- include "iam-eks-user.selectorLabels" . | nindent 8 }}
+        {{- include "iam-eks-user.selectorLabels" . | nindent 8 }}
     spec:
-      {{ - with .Values.imagePullSecrets }}
+      {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
-        {{ - toYaml . | nindent 8 }}
-      {{ - end }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           env:
-            - name: IAM_K8S_GROUPS
+            - name: "IAM_K8S_GROUPS"
               value: "{{ .Values.iamK8sGroups }}"
-            - name: REFRESH_INTERVAL_SECONDS
-              value: {{ .Values.refreshIntervalSeconds }}
-            - name: REGION
-              value: "{{ .Values.region }}"
-            - name: ROLE_ARN
-              value: "{{ .Values.roleArn }}"
+            - name: "REFRESH_INTERVAL_SECONDS"
+              value: "{{ .Values.refreshIntervalSeconds }}"
+            - name: "AWS_STS_REGIONAL_ENDPOINTS"
+              value: "regional"
+            - name: "AWS_DEFAULT_REGION"
+              value: "{{ .Values.aws.defaultRegion }}"
+            - name: "AWS_ROLE_ARN"
+              value: "{{ .Values.aws.roleArn }}"
           resources:
-            {{ - toYaml .Values.resources | nindent 12 }}
+            {{- toYaml .Values.resources | nindent 12 }}
           command:
-            - ./app
+            - ./usr/bin/iam-eks-user-mapper
       automountServiceAccountToken: true
-      serviceAccountName: {{ include "iam-eks-user.serviceAccountName" . }}
+      serviceAccountName: {{ include "iam-eks-user.fullname" . }}

@@ -2,15 +2,22 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-roleArn: ""
-iamK8sGroups: "group1,group2"
+iamK8sGroups: "" # "group1,group2"
 refreshIntervalSeconds: 60
-region: ""
+
+aws:
+  defaultRegion: ""
+  roleArn: ""
 
 replicaCount: 1
 
+labels:
+  app: iam-eks-user-mapper
+selectorLabels:
+  app: iam-eks-user-mapper
+
 image:
-  repository:
+  repository: ""
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""

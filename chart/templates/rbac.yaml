@@ -1,7 +1,7 @@
 kind: ServiceAccount
 apiVersion: v1
 metadata:
-  name: {{ include "iam-eks-user.serviceAccountName" . }}
+  name: {{ include "iam-eks-user.fullname" . }}
   namespace: kube-system
 ---
 kind: Role
@@ -22,7 +22,7 @@ metadata:
   name: eks-configmap-modifier-rolebinding
 subjects:
   - kind: ServiceAccount
-    name: {{ include "iam-eks-user.serviceAccountName" . }}
+    name: {{ include "iam-eks-user.fullname" . }}
     namespace: kube-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
