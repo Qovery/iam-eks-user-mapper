@@ -1,7 +1,8 @@
 use crate::aws::iam::IamError;
 use aws_config::SdkConfig;
+use aws_sdk_iam::config::timeout::TimeoutConfig;
 use aws_sdk_iam::config::Region;
-use std::env;
+use std::time::Duration;
 use thiserror::Error;
 
 pub mod iam;
@@ -22,25 +23,26 @@ impl AwsSdkConfig {
     pub async fn new(region: Region, role_name: &str) -> Result<AwsSdkConfig, AwsError> {
         let config = aws_config::load_from_env().await;
 
-        // TODO(benjaminch): hack migration code to be removed
-        if env::var("AWS_ACCESS_KEY_ID").is_err() {
-            match config.credentials_provider() {
-                Some(credential) => {
-                    let provider = aws_config::sts::AssumeRoleProvider::builder(role_name)
-                        .region(region)
-                        .build(credential.clone());
-                    let local_config = aws_config::from_env()
-                        .credentials_provider(provider)
-                        .load()
-                        .await;
-                    Ok(AwsSdkConfig {
-                        config: local_config,
-                    })
-                }
-                None => Err(AwsError::ErrorCannotGetLoginConfiguration),
+        match config.credentials_provider() {
+            Some(credential) => {
+                let provider = aws_config::sts::AssumeRoleProvider::builder(role_name)
+                    .region(region)
+                    .session_name(String::from("iam-eks-user-mapper-assume-role"))
+                    .build(credential.clone());
+                let local_config = aws_config::from_env()
+                    .credentials_provider(provider)
+                    .timeout_config(
+                        TimeoutConfig::builder()
+                            .operation_attempt_timeout(Duration::from_millis(300))
+                            .build(),
+                    )
+                    .load()
+                    .await;
+                Ok(AwsSdkConfig {
+                    config: local_config,
+                })
             }
-        } else {
-            Ok(AwsSdkConfig { config })
+            None => Err(AwsError::ErrorCannotGetLoginConfiguration),
         }
     }
 }
