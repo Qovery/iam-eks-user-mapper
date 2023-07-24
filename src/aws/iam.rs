@@ -6,8 +6,11 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum IamError {
-    #[error("Unknown error")]
-    CannotGetUserFromGroup { raw_message: Arc<str> },
+    #[error("Cannot get users from group `{group}`, error: {raw_message}")]
+    CannotGetUserFromGroup {
+        group: Arc<str>,
+        raw_message: Arc<str>,
+    },
 }
 
 pub struct IamService {
@@ -72,6 +75,7 @@ impl IamService {
             Err(e) => {
                 return Err(AwsError::IamError {
                     underlying_error: IamError::CannotGetUserFromGroup {
+                        group: Arc::from(group_name),
                         raw_message: Arc::from(e.to_string()),
                     },
                 })
