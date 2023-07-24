@@ -33,7 +33,7 @@ impl AwsSdkConfig {
                     .credentials_provider(provider)
                     .timeout_config(
                         TimeoutConfig::builder()
-                            .operation_attempt_timeout(Duration::from_millis(300))
+                            .operation_attempt_timeout(Duration::from_millis(10000))
                             .build(),
                     )
                     .load()
