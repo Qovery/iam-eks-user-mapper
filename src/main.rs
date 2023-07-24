@@ -19,9 +19,9 @@ use tracing_subscriber::{prelude::*, EnvFilter, FmtSubscriber};
 #[command(author, version, about, long_about = None)]
 struct Args {
     #[arg(short = 'R', long, env)]
-    pub role_arn: String,
+    pub aws_role_arn: String,
     #[arg(short = 'r', long, env)]
-    pub region: String,
+    pub aws_default_region: String,
     #[arg(short = 'i', long, env, default_value_t = 60)]
     pub refresh_interval_seconds: u64,
     #[clap(short = 'g', long, env, value_parser, num_args = 1.., value_delimiter = ',')]
@@ -84,8 +84,8 @@ async fn main() -> Result<(), errors::Error> {
     let args = Args::parse();
 
     let config = config::Config::new(
-        args.role_arn,
-        args.region,
+        args.aws_role_arn,
+        args.aws_default_region,
         Duration::from_secs(args.refresh_interval_seconds),
         args.iam_k8s_groups,
     )
