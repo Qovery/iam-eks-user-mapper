@@ -1,4 +1,16 @@
-on: [push, pull_request]
+# This GitHub action runs your tests for each pull request and push.
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ main ]
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
 
 name: build
 
