@@ -10,6 +10,7 @@ pub struct Config {
     pub region: Region,
     pub role_arn: RoleArn,
     pub iam_k8s_groups: Vec<IamK8sGroup>,
+    pub verbose: bool,
 }
 
 impl Config {
@@ -18,12 +19,14 @@ impl Config {
         region: Region,
         refresh_interval: Duration,
         iam_k8s_groups: Vec<IamK8sGroup>,
+        verbose: bool,
     ) -> Result<Config, errors::Error> {
         Ok(Config {
             role_arn,
             region,
             refresh_interval,
             iam_k8s_groups,
+            verbose,
         })
     }
 }

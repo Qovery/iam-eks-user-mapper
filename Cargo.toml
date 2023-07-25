@@ -10,7 +10,7 @@ clap = { version = "4.3.12", features = ["derive", "env"] }
 humantime = "2.1.0"
 serde = "1.0"
 serde_yaml = "0.9"
-tokio = { version = "1.28.2", features = ["io-std", "rt-multi-thread", "signal", "rt", "macros"] }
+tokio = { version = "1.28.2", features = ["full"] }
 tokio-util = "0.7.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
@@ -23,3 +23,4 @@ k8s-openapi = { version = "0.18.0", default-features = false, features = ["v1_24
 # AWS
 aws-config = "0.55.3"
 aws-sdk-iam = "0.28.0"
+aws-sdk-sts = "0.28.0"

@@ -15,6 +15,7 @@ pub enum IamError {
 
 pub struct IamService {
     client: aws_sdk_iam::Client,
+    _verbose: bool,
 }
 
 type Arn = String;
@@ -28,9 +29,10 @@ pub struct AwsUser {
 }
 
 impl IamService {
-    pub fn new(config: &AwsSdkConfig) -> Self {
+    pub fn new(config: &AwsSdkConfig, verbose: bool) -> Self {
         IamService {
             client: aws_sdk_iam::Client::new(&config.config),
+            _verbose: verbose,
         }
     }
 

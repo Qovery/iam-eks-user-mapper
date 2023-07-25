@@ -26,6 +26,8 @@ struct Args {
     pub refresh_interval_seconds: u64,
     #[clap(short = 'g', long, env, value_parser, num_args = 1.., value_delimiter = ',')]
     pub iam_k8s_groups: Vec<String>,
+    #[clap(short = 'v', long, env, default_value_t = false)]
+    pub verbose: bool,
 }
 
 async fn sync_iam_eks_users(
@@ -87,18 +89,21 @@ async fn main() -> Result<(), errors::Error> {
         args.aws_default_region,
         Duration::from_secs(args.refresh_interval_seconds),
         args.iam_k8s_groups,
+        args.verbose,
     )
     .map_err(|_e| Error::ConfigurationErrorInvalidInputs)?;
 
     let aws_config = AwsSdkConfig::new(
         Region::from_static(Box::leak(config.region.to_string().into_boxed_str())), // TODO(benjaminch): find a better way
         config.role_arn.as_str(),
+        config.verbose,
     )
     .await
     .map_err(|e| Error::Aws {
         underlying_error: e,
     })?;
-    let iam_client = IamService::new(&aws_config);
+
+    let iam_client = IamService::new(&aws_config, config.verbose);
 
     let kubernetes_client = KubernetesService::new()
         .await

@@ -3,8 +3,10 @@ use aws_config::meta::region::RegionProviderChain;
 use aws_config::SdkConfig;
 use aws_sdk_iam::config::timeout::TimeoutConfig;
 use aws_sdk_iam::config::Region;
+use aws_sdk_sts::Client;
 use std::time::Duration;
 use thiserror::Error;
+use tracing::{error, info};
 
 pub mod iam;
 
@@ -18,10 +20,15 @@ pub enum AwsError {
 
 pub struct AwsSdkConfig {
     config: SdkConfig,
+    _verbose: bool,
 }
 
 impl AwsSdkConfig {
-    pub async fn new(region: Region, role_name: &str) -> Result<AwsSdkConfig, AwsError> {
+    pub async fn new(
+        region: Region,
+        role_name: &str,
+        verbose: bool,
+    ) -> Result<AwsSdkConfig, AwsError> {
         let region_provider = RegionProviderChain::first_try(region.clone())
             .or_default_provider()
             .or_else(region);
@@ -41,8 +48,27 @@ impl AwsSdkConfig {
                     )
                     .load()
                     .await;
+
+                if verbose {
+                    let client = Client::new(&local_config);
+                    let req = client.get_caller_identity();
+                    let resp = req.send().await;
+                    match resp {
+                        Ok(e) => {
+                            info!(
+                                "UserID: {}, Account: {}, Arn: {}",
+                                e.user_id().unwrap_or_default(),
+                                e.account().unwrap_or_default(),
+                                e.arn().unwrap_or_default()
+                            );
+                        }
+                        Err(e) => error!("{:?}", e),
+                    }
+                }
+
                 Ok(AwsSdkConfig {
                     config: local_config,
+                    _verbose: verbose,
                 })
             }
             None => Err(AwsError::ErrorCannotGetLoginConfiguration),
@@ -52,6 +78,9 @@ impl AwsSdkConfig {
 
 impl From<SdkConfig> for AwsSdkConfig {
     fn from(value: SdkConfig) -> Self {
-        AwsSdkConfig { config: value }
+        AwsSdkConfig {
+            config: value,
+            _verbose: false,
+        }
     }
 }
