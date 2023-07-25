@@ -63,7 +63,6 @@ async fn main() -> Result<(), errors::Error> {
     // Init tracing subscriber
     let subscriber = FmtSubscriber::builder()
         .with_env_filter(EnvFilter::from_default_env())
-        .with_max_level(Level::INFO)
         .fmt_fields(
             tracing_subscriber::fmt::format::debug_fn(|writer, field, value| {
                 write!(writer, "{field}: {value:?}")
