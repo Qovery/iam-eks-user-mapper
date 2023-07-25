@@ -32,6 +32,8 @@ spec:
               value: "{{ .Values.refreshIntervalSeconds }}"
             - name: "AWS_STS_REGIONAL_ENDPOINTS"
               value: "regional"
+            - name: "AWS_REGION"
+              value: "{{ .Values.aws.defaultRegion }}"
             - name: "AWS_DEFAULT_REGION"
               value: "{{ .Values.aws.defaultRegion }}"
             - name: "AWS_ROLE_ARN"
