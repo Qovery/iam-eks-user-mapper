@@ -31,13 +31,14 @@ impl AwsSdkConfig {
     ) -> Result<AwsSdkConfig, AwsError> {
         let region_provider = RegionProviderChain::first_try(region.clone())
             .or_default_provider()
-            .or_else(region);
+            .or_else(region.clone());
         let config = aws_config::from_env().region(region_provider).load().await;
 
         match config.credentials_provider() {
             Some(credential) => {
                 let provider = aws_config::sts::AssumeRoleProvider::builder(role_name)
                     .session_name(String::from("iam-eks-user-mapper-assume-role"))
+                    .region(region)
                     .build(credential.clone());
                 let local_config = aws_config::from_env()
                     .credentials_provider(provider)
