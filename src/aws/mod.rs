@@ -1,16 +1,15 @@
 use crate::aws::iam::IamError;
+use aws_config::environment::EnvironmentVariableCredentialsProvider;
 use aws_config::SdkConfig;
 use aws_sdk_iam::config::Region;
-use aws_sdk_sts::Client;
+use std::sync::Arc;
 use thiserror::Error;
-use tracing::{error, info};
+use tracing::error;
 
 pub mod iam;
 
 #[derive(Error, Debug)]
 pub enum AwsError {
-    #[error("AWS error: cannot get login configuration")]
-    ErrorCannotGetLoginConfiguration,
     #[error("AWS error: error with IAM: {underlying_error}")]
     IamError { underlying_error: IamError },
 }
@@ -26,43 +25,19 @@ impl AwsSdkConfig {
         role_name: &str,
         verbose: bool,
     ) -> Result<AwsSdkConfig, AwsError> {
-        let config = aws_config::from_env().region(region.clone()).load().await;
+        let ar_provider = aws_config::sts::AssumeRoleProvider::builder(role_name)
+            .session_name(String::from("iam-eks-user-mapper-assume-role-session"))
+            .region(region.clone())
+            .build(Arc::new(EnvironmentVariableCredentialsProvider::new()) as Arc<_>);
+        let config = aws_config::from_env()
+            .credentials_provider(ar_provider)
+            .load()
+            .await;
 
-        match config.credentials_provider() {
-            Some(credential) => {
-                let provider = aws_config::sts::AssumeRoleProvider::builder(role_name)
-                    .session_name(String::from("iam-eks-user-mapper-assume-role-session"))
-                    .region(region.clone())
-                    .build(credential.clone());
-                let local_config = aws_config::from_env()
-                    .credentials_provider(provider)
-                    .load()
-                    .await;
-
-                if verbose {
-                    let client = Client::new(&local_config);
-                    let req = client.get_caller_identity();
-                    let resp = req.send().await;
-                    match resp {
-                        Ok(e) => {
-                            info!(
-                                "UserID: {}, Account: {}, Arn: {}",
-                                e.user_id().unwrap_or_default(),
-                                e.account().unwrap_or_default(),
-                                e.arn().unwrap_or_default()
-                            );
-                        }
-                        Err(e) => error!("Cannot get caller identity: {:?}", e),
-                    }
-                }
-
-                Ok(AwsSdkConfig {
-                    config: local_config,
-                    _verbose: verbose,
-                })
-            }
-            None => Err(AwsError::ErrorCannotGetLoginConfiguration),
-        }
+        Ok(AwsSdkConfig {
+            config,
+            _verbose: verbose,
+        })
     }
 }
 
