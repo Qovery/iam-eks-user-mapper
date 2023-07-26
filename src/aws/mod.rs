@@ -1,10 +1,7 @@
 use crate::aws::iam::IamError;
-use aws_config::meta::region::RegionProviderChain;
 use aws_config::SdkConfig;
-use aws_sdk_iam::config::timeout::TimeoutConfig;
 use aws_sdk_iam::config::Region;
 use aws_sdk_sts::Client;
-use std::time::Duration;
 use thiserror::Error;
 use tracing::{error, info};
 
