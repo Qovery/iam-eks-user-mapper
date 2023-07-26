@@ -29,24 +29,17 @@ impl AwsSdkConfig {
         role_name: &str,
         verbose: bool,
     ) -> Result<AwsSdkConfig, AwsError> {
-        let region_provider = RegionProviderChain::first_try(region.clone())
-            .or_default_provider()
-            .or_else(region.clone());
-        let config = aws_config::from_env().region(region_provider).load().await;
+        let config = aws_config::from_env().region(region.clone()).load().await;
 
         match config.credentials_provider() {
             Some(credential) => {
                 let provider = aws_config::sts::AssumeRoleProvider::builder(role_name)
                     .session_name(String::from("iam-eks-user-mapper-assume-role"))
-                    .region(region)
+                    .region(region.clone())
                     .build(credential.clone());
                 let local_config = aws_config::from_env()
                     .credentials_provider(provider)
-                    .timeout_config(
-                        TimeoutConfig::builder()
-                            .operation_attempt_timeout(Duration::from_millis(10000))
-                            .build(),
-                    )
+                    .region(region)
                     .load()
                     .await;
 
@@ -63,7 +56,7 @@ impl AwsSdkConfig {
                                 e.arn().unwrap_or_default()
                             );
                         }
-                        Err(e) => error!("{:?}", e),
+                        Err(e) => error!("Cannot get caller identity: {:?}", e),
                     }
                 }
 
