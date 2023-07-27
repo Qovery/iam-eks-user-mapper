@@ -38,6 +38,8 @@ spec:
               value: "{{ .Values.aws.defaultRegion }}"
             - name: "AWS_ROLE_ARN"
               value: "{{ .Values.aws.roleArn }}"
+            - name: "SERVICE_ACCOUNT_NAME"
+              value: {{ include "iam-eks-user.fullname" . }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           command:

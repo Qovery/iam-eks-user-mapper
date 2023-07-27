@@ -23,14 +23,14 @@ pub struct AwsSdkConfig {
 impl AwsSdkConfig {
     pub async fn new(
         region: Region,
-        role_name: &str,
+        role_arn: &str,
         verbose: bool,
     ) -> Result<AwsSdkConfig, AwsError> {
         let config = aws_config::from_env().region(region.clone()).load().await;
 
         match config.credentials_provider() {
             Some(credential) => {
-                let provider = aws_config::sts::AssumeRoleProvider::builder(role_name)
+                let provider = aws_config::sts::AssumeRoleProvider::builder(role_arn)
                     .session_name(String::from("iam-eks-user-mapper-assume-role-session"))
                     .region(region.clone())
                     .build(credential.clone());
