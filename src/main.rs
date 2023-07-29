@@ -3,13 +3,14 @@ mod config;
 mod errors;
 mod kubernetes;
 
-use crate::aws::iam::IamService;
+use crate::aws::iam::{IamGroup, IamService, K8sGroup};
 use crate::aws::AwsSdkConfig;
+use crate::config::IamK8sGroup;
 use crate::errors::Error;
-use crate::kubernetes::{KubernetesService, KubernetesUser};
+use crate::kubernetes::{KubernetesRole, KubernetesService, KubernetesUser};
 use aws_sdk_iam::config::Region;
 use clap::Parser;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 use tokio::{task, time};
 use tracing::{error, info, span, Level};
@@ -32,26 +33,67 @@ struct Args {
     pub verbose: bool,
 }
 
+struct GroupsMappings {
+    raw: HashMap<IamGroup, K8sGroup>,
+}
+
+impl GroupsMappings {
+    fn new(iam_k8s_groups: Vec<IamK8sGroup>) -> GroupsMappings {
+        GroupsMappings {
+            raw: HashMap::from_iter(
+                iam_k8s_groups
+                    .iter()
+                    .map(|m| (m.iam_group.to_string(), m.k8s_group.to_string())),
+            ),
+        }
+    }
+
+    fn iam_groups(&self) -> Vec<IamGroup> {
+        self.raw.keys().map(|k| k.to_string()).collect()
+    }
+
+    fn k8s_group_for(&self, iam_groups: HashSet<IamGroup>) -> HashSet<KubernetesRole> {
+        let mut k8s_groups = HashSet::new();
+
+        for iam_group in iam_groups {
+            k8s_groups.insert(
+                self.raw
+                    .get(&iam_group)
+                    .unwrap_or_else(|| {
+                        panic!("K8s group mapping is not found for IAM group `{iam_group}`")
+                    })
+                    .to_string(),
+            );
+            // should never fails by design
+        }
+
+        k8s_groups
+    }
+}
+
 async fn sync_iam_eks_users(
     iam_client: &IamService,
     kubernetes_client: &KubernetesService,
-    groups_names: Vec<&str>,
+    groups_mappings: GroupsMappings,
 ) -> Result<(), errors::Error> {
     // get users from AWS groups
     let iam_users = iam_client
-        .get_users_from_groups(groups_names)
+        .get_users_from_groups(groups_mappings.iam_groups())
         .await
         .map_err(|e| Error::Aws {
             underlying_error: e,
         })?;
 
     // create kubernetes users to be added
-    let kubernetes_users: HashSet<KubernetesUser> =
-        HashSet::from_iter(iam_users.iter().map(|u| KubernetesUser {
+    let kubernetes_users: HashSet<KubernetesUser> = HashSet::from_iter(iam_users.iter().map(|u| {
+        KubernetesUser {
             iam_user_name: u.user_name.to_string(),
             iam_arn: u.arn.to_string(),
-            roles: u.groups.iter().map(|g| g.to_string()).collect(),
-        }));
+            // roles are mapped iam <-> k8s
+            roles: groups_mappings
+                .k8s_group_for(HashSet::from_iter(u.groups.iter().map(|g| g.to_string()))),
+        }
+    }));
 
     // create new users config map
     kubernetes_client
@@ -94,7 +136,9 @@ async fn main() -> Result<(), errors::Error> {
         args.iam_k8s_groups,
         args.verbose,
     )
-    .map_err(|_e| Error::ConfigurationErrorInvalidInputs)?;
+    .map_err(|e| Error::Configuration {
+        underlying_error: e,
+    })?;
 
     let aws_config = AwsSdkConfig::new(
         Region::from_static(Box::leak(config.region.to_string().into_boxed_str())), // TODO(benjaminch): find a better way
@@ -126,7 +170,7 @@ async fn main() -> Result<(), errors::Error> {
             if let Err(e) = sync_iam_eks_users(
                 &iam_client,
                 &kubernetes_client,
-                config.iam_k8s_groups.iter().map(|g| g.as_str()).collect(),
+                GroupsMappings::new(config.iam_k8s_groups.clone()),
             )
             .await
             {

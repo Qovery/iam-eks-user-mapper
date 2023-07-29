@@ -28,7 +28,7 @@ pub enum KubernetesError {
 }
 
 type IamArn = String;
-type KubernetesRole = String;
+pub type KubernetesRole = String;
 
 #[derive(Eq, PartialEq)]
 pub struct KubernetesUser {
@@ -142,7 +142,7 @@ mod tests {
         struct TestCase<'a> {
             input: HashSet<KubernetesUser>,
             expected_output: Result<String, KubernetesError>,
-            description: &'a str,
+            _description: &'a str,
         }
 
         let test_cases = vec![
@@ -179,7 +179,7 @@ mod tests {
                     .trim_start()
                     .to_string()),
 
-                description: "case 1 - nominal case",
+                _description: "case 1 - nominal case",
             },
             TestCase {
                 input: HashSet::from_iter(vec![KubernetesUser {
@@ -196,12 +196,12 @@ mod tests {
                     .trim_start()
                     .to_string()),
 
-                description: "case 2 - one user",
+                _description: "case 2 - one user",
             },
             TestCase {
                 input: HashSet::from_iter(vec![]),
                 expected_output: Ok(r"".to_string()),
-                description: "case 3 - no users",
+                _description: "case 3 - no users",
             },
         ];
 

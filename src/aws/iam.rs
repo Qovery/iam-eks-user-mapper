@@ -13,6 +13,9 @@ pub enum IamError {
     },
 }
 
+pub type IamGroup = String;
+pub type K8sGroup = String;
+
 pub struct IamService {
     client: aws_sdk_iam::Client,
     _verbose: bool,
@@ -38,12 +41,12 @@ impl IamService {
 
     pub async fn get_users_from_groups(
         &self,
-        groups_names: Vec<&str>,
+        groups_names: Vec<IamGroup>,
     ) -> Result<HashSet<AwsUser>, AwsError> {
         let mut all_users = HashSet::new();
 
         for group_name in groups_names {
-            match self.get_users_from_group(group_name).await {
+            match self.get_users_from_group(&group_name).await {
                 Ok(users) => all_users.extend(users),
                 Err(e) => return Err(e),
             }
