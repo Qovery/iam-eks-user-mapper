@@ -39,10 +39,10 @@ spec:
             - name: "AWS_ROLE_ARN"
               value: "{{ .Values.aws.roleArn }}"
             - name: "SERVICE_ACCOUNT_NAME"
-              value: {{ include "iam-eks-user.fullname" . }}
+              value: "{{ .Values.serviceAccount.name }}"
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           command:
             - ./usr/bin/iam-eks-user-mapper
       automountServiceAccountToken: true
-      serviceAccountName: {{ include "iam-eks-user.fullname" . }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
