@@ -139,6 +139,14 @@ mod tests {
                 }),
                 _description: "case 5 - k8s group is empty",
             },
+            TestCase {
+                input: " iam_group -> k8s_group ",
+                expected: Ok(IamK8sGroup {
+                    iam_group: IamGroup::new("iam_group"),
+                    k8s_group: KubernetesGroup::new("k8s_group"),
+                }),
+                _description: "case 6 - some trailing spaces presents around groups names",
+            },
         ];
 
         for tc in test_cases {

@@ -169,10 +169,15 @@ impl KubernetesService {
         })?;
 
         // update config map
-        users_config_map.data.replace(BTreeMap::from_iter(vec![(
-            "mapUsers".to_string(),
-            Self::generate_users_config_map_yaml_string(kubernetes_users)?,
-        )]));
+        let mut default_data = BTreeMap::new();
+        users_config_map
+            .data
+            .as_mut()
+            .unwrap_or(&mut default_data)
+            .insert(
+                "mapUsers".to_string(),
+                Self::generate_users_config_map_yaml_string(kubernetes_users)?,
+            );
 
         match config_maps_api
             .replace(config_map_name, &PostParams::default(), &users_config_map)
