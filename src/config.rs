@@ -37,8 +37,8 @@ impl FromStr for IamK8sGroup {
                 }
 
                 Ok(IamK8sGroup {
-                    iam_group: IamGroup::new(iam_group),
-                    k8s_group: KubernetesGroup::new(k8s_group),
+                    iam_group: IamGroup::new(iam_group.trim()),
+                    k8s_group: KubernetesGroup::new(k8s_group.trim()),
                 })
             }
             (_, _) => Err(ConfigurationError::InvalidIamK8sGroupMapping {
@@ -60,7 +60,7 @@ pub struct Config {
 impl Config {
     pub fn new(
         role_arn: RoleArn,
-        region: Region,
+        region: String,
         service_account_name: String,
         refresh_interval: Duration,
         iam_k8s_groups_mapping_raw: Vec<IamK8sGroupMappingsRaw>,

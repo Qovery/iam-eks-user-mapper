@@ -3,7 +3,6 @@ use aws_config::meta::region::RegionProviderChain;
 use aws_config::SdkConfig;
 use aws_sdk_iam::config::Region;
 use aws_sdk_sts::Client;
-use std::sync::Arc;
 use thiserror::Error;
 use tracing::{error, info};
 
@@ -13,8 +12,8 @@ pub mod iam;
 pub enum AwsError {
     #[error("AWS error: cannot get login configuration")]
     CannotGetLoginConfiguration,
-    #[error("AWS error: cannot get region `{region}`")]
-    CannotGetAwsRegion { region: Arc<str> },
+    #[error("AWS error: cannot get region")]
+    CannotGetAwsRegion,
     #[error("AWS error: error with IAM: {underlying_error}")]
     IamError { underlying_error: IamError },
 }
@@ -34,20 +33,16 @@ pub struct AwsSdkConfig {
 
 impl AwsSdkConfig {
     pub async fn new(
-        region: &'static str,
+        region: String,
         role_arn: &str,
         verbose: bool,
     ) -> Result<AwsSdkConfig, AwsError> {
         let region_provider =
             RegionProviderChain::first_try(Region::new(region)).or_default_provider();
-        let region = match region_provider.region().await {
-            Some(r) => r,
-            None => {
-                return Err(AwsError::CannotGetAwsRegion {
-                    region: Arc::from(region.to_string()),
-                });
-            }
-        };
+        let region = region_provider
+            .region()
+            .await
+            .ok_or_else(|| AwsError::CannotGetAwsRegion)?;
 
         let config = aws_config::from_env().region(region_provider).load().await;
 

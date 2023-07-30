@@ -8,8 +8,6 @@ use crate::aws::AwsSdkConfig;
 use crate::config::IamK8sGroup;
 use crate::errors::Error;
 use crate::kubernetes::{IamArn, IamUserName, KubernetesGroup, KubernetesService, KubernetesUser};
-use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_iam::config::Region;
 use clap::Parser;
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
