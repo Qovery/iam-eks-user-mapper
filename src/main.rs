@@ -8,6 +8,7 @@ use crate::aws::AwsSdkConfig;
 use crate::config::IamK8sGroup;
 use crate::errors::Error;
 use crate::kubernetes::{IamArn, IamUserName, KubernetesGroup, KubernetesService, KubernetesUser};
+use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_iam::config::Region;
 use clap::Parser;
 use std::collections::{HashMap, HashSet};
@@ -148,15 +149,11 @@ async fn main() -> Result<(), errors::Error> {
         underlying_error: e,
     })?;
 
-    let aws_config = AwsSdkConfig::new(
-        Region::from_static(Box::leak(config.region.to_string().into_boxed_str())), // TODO(benjaminch): find a better way
-        config.role_arn.as_str(),
-        config.verbose,
-    )
-    .await
-    .map_err(|e| Error::Aws {
-        underlying_error: e,
-    })?;
+    let aws_config = AwsSdkConfig::new(config.region, config.role_arn.as_str(), config.verbose)
+        .await
+        .map_err(|e| Error::Aws {
+            underlying_error: e,
+        })?;
 
     let iam_client = IamService::new(&aws_config, config.verbose);
 
