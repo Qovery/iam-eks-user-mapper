@@ -3,11 +3,11 @@ mod config;
 mod errors;
 mod kubernetes;
 
-use crate::aws::iam::{IamGroup, IamService, K8sGroup};
+use crate::aws::iam::{IamGroup, IamService};
 use crate::aws::AwsSdkConfig;
 use crate::config::IamK8sGroup;
 use crate::errors::Error;
-use crate::kubernetes::{KubernetesRole, KubernetesService, KubernetesUser};
+use crate::kubernetes::{IamArn, IamUserName, KubernetesGroup, KubernetesService, KubernetesUser};
 use aws_sdk_iam::config::Region;
 use clap::Parser;
 use std::collections::{HashMap, HashSet};
@@ -44,7 +44,7 @@ struct Args {
 }
 
 struct GroupsMappings {
-    raw: HashMap<IamGroup, K8sGroup>,
+    raw: HashMap<IamGroup, KubernetesGroup>,
 }
 
 impl GroupsMappings {
@@ -52,17 +52,17 @@ impl GroupsMappings {
         GroupsMappings {
             raw: HashMap::from_iter(
                 iam_k8s_groups
-                    .iter()
-                    .map(|m| (m.iam_group.to_string(), m.k8s_group.to_string())),
+                    .into_iter()
+                    .map(|m| (m.iam_group, m.k8s_group)),
             ),
         }
     }
 
-    fn iam_groups(&self) -> Vec<IamGroup> {
-        self.raw.keys().map(|k| k.to_string()).collect()
+    fn iam_groups(&self) -> HashSet<IamGroup> {
+        HashSet::from_iter(self.raw.keys().cloned())
     }
 
-    fn k8s_group_for(&self, iam_groups: HashSet<IamGroup>) -> HashSet<KubernetesRole> {
+    fn k8s_group_for(&self, iam_groups: HashSet<IamGroup>) -> HashSet<KubernetesGroup> {
         let mut k8s_groups = HashSet::new();
 
         for iam_group in iam_groups {
@@ -72,7 +72,7 @@ impl GroupsMappings {
                     .unwrap_or_else(|| {
                         panic!("K8s group mapping is not found for IAM group `{iam_group}`")
                     })
-                    .to_string(),
+                    .clone(),
             );
             // should never fails by design
         }
@@ -91,18 +91,16 @@ async fn sync_iam_eks_users(
         .get_users_from_groups(groups_mappings.iam_groups())
         .await
         .map_err(|e| Error::Aws {
-            underlying_error: e,
+            underlying_error: e.into(),
         })?;
 
     // create kubernetes users to be added
     let kubernetes_users: HashSet<KubernetesUser> = HashSet::from_iter(iam_users.iter().map(|u| {
-        KubernetesUser {
-            iam_user_name: u.user_name.to_string(),
-            iam_arn: u.arn.to_string(),
-            // roles are mapped iam <-> k8s
-            roles: groups_mappings
-                .k8s_group_for(HashSet::from_iter(u.groups.iter().map(|g| g.to_string()))),
-        }
+        KubernetesUser::new(
+            IamUserName::new(&u.user_name.to_string()),
+            IamArn::new(&u.arn.to_string()),
+            groups_mappings.k8s_group_for(u.groups.clone()),
+        )
     }));
 
     // create new users config map

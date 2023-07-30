@@ -15,6 +15,14 @@ pub enum AwsError {
     IamError { underlying_error: IamError },
 }
 
+impl From<IamError> for AwsError {
+    fn from(e: IamError) -> Self {
+        AwsError::IamError {
+            underlying_error: e,
+        }
+    }
+}
+
 pub struct AwsSdkConfig {
     config: SdkConfig,
     _verbose: bool,

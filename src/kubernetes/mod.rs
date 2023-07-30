@@ -3,6 +3,7 @@ use kube::api::PostParams;
 use kube::{Api, Client};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
+use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use thiserror::Error;
@@ -27,30 +28,86 @@ pub enum KubernetesError {
     },
 }
 
-type IamArn = String;
-pub type KubernetesRole = String;
+#[derive(Eq, PartialEq)]
+pub struct IamUserName(String);
+
+impl IamUserName {
+    pub fn new(iam_user_name: &str) -> IamUserName {
+        IamUserName(iam_user_name.to_string())
+    }
+}
+
+impl Display for IamUserName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_str())
+    }
+}
+
+#[derive(Eq, PartialEq)]
+pub struct IamArn(String);
+
+impl IamArn {
+    pub fn new(iam_arn: &str) -> IamArn {
+        IamArn(iam_arn.to_string())
+    }
+}
+
+impl Display for IamArn {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_str())
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub struct KubernetesGroup(String);
+
+impl KubernetesGroup {
+    pub fn new(kubernetes_role: &str) -> KubernetesGroup {
+        KubernetesGroup(kubernetes_role.to_string())
+    }
+}
+
+impl Display for KubernetesGroup {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_str())
+    }
+}
 
 #[derive(Eq, PartialEq)]
 pub struct KubernetesUser {
-    pub iam_user_name: String,
+    pub iam_user_name: IamUserName,
     pub iam_arn: IamArn,
-    pub roles: HashSet<KubernetesRole>,
+    pub roles: HashSet<KubernetesGroup>,
+}
+
+impl KubernetesUser {
+    pub fn new(
+        iam_user_name: IamUserName,
+        iam_arn: IamArn,
+        roles: HashSet<KubernetesGroup>,
+    ) -> KubernetesUser {
+        KubernetesUser {
+            iam_user_name,
+            iam_arn,
+            roles,
+        }
+    }
 }
 
 impl Hash for KubernetesUser {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.iam_user_name.to_lowercase().hash(state);
-        self.iam_arn.to_lowercase().hash(state);
+        self.iam_user_name.to_string().to_lowercase().hash(state);
+        self.iam_arn.to_string().to_lowercase().hash(state);
     }
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct MapUserConfig<'a> {
-    user_arn: &'a str,
-    username: &'a str,
-    groups: HashSet<&'a str>,
+struct MapUserConfig {
+    user_arn: String,
+    username: String,
+    groups: HashSet<String>,
 }
-impl<'a> Hash for MapUserConfig<'a> {
+impl Hash for MapUserConfig {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.user_arn.to_lowercase().hash(state);
         self.username.to_lowercase().hash(state);
@@ -79,10 +136,10 @@ impl KubernetesService {
         kubernetes_users: HashSet<KubernetesUser>,
     ) -> Result<String, KubernetesError> {
         let user_config_map: HashSet<MapUserConfig> =
-            HashSet::from_iter(kubernetes_users.iter().map(|u| MapUserConfig {
-                user_arn: u.iam_arn.as_str(),
-                username: u.iam_user_name.as_str(),
-                groups: HashSet::from_iter(u.roles.iter().map(|g| g.as_str())),
+            HashSet::from_iter(kubernetes_users.into_iter().map(|u| MapUserConfig {
+                user_arn: u.iam_arn.to_string(),
+                username: u.iam_user_name.to_string(),
+                groups: HashSet::from_iter(u.roles.iter().map(|r| r.to_string())),
             }));
 
         match serde_yaml::to_string(&user_config_map) {
@@ -133,7 +190,10 @@ impl KubernetesService {
 
 #[cfg(test)]
 mod tests {
-    use crate::kubernetes::{KubernetesError, KubernetesService, KubernetesUser, MapUserConfig};
+    use crate::kubernetes::{
+        IamArn, IamUserName, KubernetesError, KubernetesGroup, KubernetesService, KubernetesUser,
+        MapUserConfig,
+    };
     use std::collections::HashSet;
 
     #[test]
@@ -149,19 +209,19 @@ mod tests {
             TestCase {
                 input: HashSet::from_iter(vec![
                     KubernetesUser {
-                        iam_user_name: "user_1".to_string(),
-                        iam_arn: "arn:test:user_1".to_string(),
+                        iam_user_name: IamUserName::new("user_1"),
+                        iam_arn: IamArn::new("arn:test:user_1"),
                         roles: HashSet::from_iter(vec![
-                            "group_1".to_string(),
-                            "group_2".to_string(),
+                            KubernetesGroup::new("group_1"),
+                            KubernetesGroup::new("group_2"),
                         ]),
                     },
                     KubernetesUser {
-                        iam_user_name: "user_2".to_string(),
-                        iam_arn: "arn:test:user_2".to_string(),
+                        iam_user_name: IamUserName::new("user_2"),
+                        iam_arn: IamArn::new("arn:test:user_2"),
                         roles: HashSet::from_iter(vec![
-                            "group_2".to_string(),
-                            "group_3".to_string(),
+                            KubernetesGroup::new("group_2"),
+                            KubernetesGroup::new("group_3"),
                         ]),
                     },
                 ]),
@@ -183,9 +243,12 @@ mod tests {
             },
             TestCase {
                 input: HashSet::from_iter(vec![KubernetesUser {
-                    iam_user_name: "user_1".to_string(),
-                    iam_arn: "arn:test:user_1".to_string(),
-                    roles: HashSet::from_iter(vec!["group_1".to_string(), "group_2".to_string()]),
+                    iam_user_name: IamUserName::new("user_1"),
+                    iam_arn: IamArn::new("arn:test:user_1"),
+                    roles: HashSet::from_iter(vec![
+                        KubernetesGroup::new("group_1"),
+                        KubernetesGroup::new("group_2"),
+                    ]),
                 }]),
                 expected_output: Ok(r"
 - user_arn: arn:test:user_1

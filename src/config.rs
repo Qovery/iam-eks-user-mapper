@@ -1,4 +1,5 @@
-use crate::{IamGroup, K8sGroup};
+use crate::kubernetes::KubernetesGroup;
+use crate::IamGroup;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -19,7 +20,7 @@ pub enum ConfigurationError {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IamK8sGroup {
     pub iam_group: IamGroup,
-    pub k8s_group: K8sGroup,
+    pub k8s_group: KubernetesGroup,
 }
 
 impl FromStr for IamK8sGroup {
@@ -36,8 +37,8 @@ impl FromStr for IamK8sGroup {
                 }
 
                 Ok(IamK8sGroup {
-                    iam_group: iam_group.to_string(),
-                    k8s_group: k8s_group.to_string(),
+                    iam_group: IamGroup::new(iam_group),
+                    k8s_group: KubernetesGroup::new(k8s_group),
                 })
             }
             (_, _) => Err(ConfigurationError::InvalidIamK8sGroupMapping {
@@ -86,7 +87,9 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
+    use crate::aws::iam::IamGroup;
     use crate::config::{ConfigurationError, IamK8sGroup};
+    use crate::kubernetes::KubernetesGroup;
     use std::str::FromStr;
     use std::sync::Arc;
 
@@ -103,8 +106,8 @@ mod tests {
             TestCase {
                 input: "iam_group->k8s_group",
                 expected: Ok(IamK8sGroup {
-                    iam_group: "iam_group".to_string(),
-                    k8s_group: "k8s_group".to_string(),
+                    iam_group: IamGroup::new("iam_group"),
+                    k8s_group: KubernetesGroup::new("k8s_group"),
                 }),
                 _description: "case 1 - nominal case",
             },
