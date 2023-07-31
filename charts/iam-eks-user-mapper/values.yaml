@@ -9,8 +9,6 @@ aws:
   defaultRegion: ""
   roleArn: ""
 
-replicaCount: 1
-
 labels:
   app: iam-eks-user-mapper
 selectorLabels:
