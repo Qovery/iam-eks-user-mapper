@@ -3,6 +3,17 @@ entries:
   iam-eks-user-mapper:
   - apiVersion: v2
     appVersion: 0.1.0
+    created: "2023-07-31T13:51:11.728431272Z"
+    description: A Helm chart for iam-eks-user-mapper, a tool to automatically give
+      AWS IAM users access to your Kubernetes cluster.
+    digest: a587140287af9b748f074225dd29156826057066208590521a394d22c26b5e67
+    name: iam-eks-user-mapper
+    type: application
+    urls:
+    - https://Qovery.github.io/iam-eks-user-mapper/iam-eks-user-mapper-0.1.2.tgz
+    version: 0.1.2
+  - apiVersion: v2
+    appVersion: 0.1.0
     created: "2023-07-29T14:02:51.767675865Z"
     description: A Helm chart for Kubernetes IAM EKS user mapper
     digest: db756c4abd29f40b2b53b2dc5c4e0cc72247a9229db0750e18468c7e6ebc9610
@@ -11,4 +22,4 @@ entries:
     urls:
     - https://Qovery.github.io/iam-eks-user-mapper/iam-eks-user-mapper-0.1.0.tgz
     version: 0.1.0
-generated: "2023-07-29T14:02:51.767153263Z"
+generated: "2023-07-31T13:51:11.727742969Z"
