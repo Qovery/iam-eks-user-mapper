@@ -19,13 +19,13 @@ use tracing_subscriber::{prelude::*, EnvFilter, FmtSubscriber};
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Service account name to be used, e.q: my-service-account
-    #[arg(short = 's', long, env)]
+    #[arg(short = 's', long, env, required = true)]
     pub service_account_name: String,
     /// AWS role ARN to be used, e.q: arn:aws:iam::12345678910:role/my-role
-    #[arg(short = 'R', long, env)]
+    #[arg(short = 'R', long, env, required = true)]
     pub aws_role_arn: String,
     /// AWS default region to be used, e.q: eu-west-3
-    #[arg(short = 'r', long, env)]
+    #[arg(short = 'r', long, env, required = true)]
     pub aws_default_region: String,
     /// Refresh interval in seconds between two user synchronization, e.q: 30
     #[arg(short = 'i', long, env, default_value_t = 60)]
@@ -35,7 +35,7 @@ struct Args {
     /// Several mappings can be provided using comma separator, e.q: Admins->system:masters,Devops->system:devops
     ///
     /// Syntax is <IAM_GROUP>-><KUBERNETES_GROUP>,<IAM_GROUP_2>-><KUBERNETES_GROUP_2>,
-    #[clap(short = 'g', long, env, value_parser, num_args = 1.., value_delimiter = ',')]
+    #[clap(short = 'g', long, env, value_parser, num_args = 1.., value_delimiter = ',', required = true)]
     pub iam_k8s_groups: Vec<String>,
     /// Activate verbose mode
     #[clap(short = 'v', long, env, default_value_t = false)]
