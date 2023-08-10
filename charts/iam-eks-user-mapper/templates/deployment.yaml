@@ -9,6 +9,8 @@ metadata:
   {{ toYaml . | indent 4 }}
   {{- end }}
 spec:
+  strategy:
+    type: Recreate # avoid collision (even if k8s should have lock mechanism)
   selector:
     matchLabels:
       {{- include "iam-eks-user.selectorLabels" . | nindent 8 }}
@@ -22,8 +24,6 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      strategy:
-        type: Recreate # avoid collision (even if k8s should have lock mechanism)
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
