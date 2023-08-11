@@ -103,8 +103,11 @@ impl Hash for KubernetesUser {
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 struct MapUserConfig {
+    #[serde(rename = "userarn")]
     user_arn: String,
+    #[serde(rename = "username")]
     username: String,
+    #[serde(rename = "groups")]
     groups: HashSet<String>,
 }
 impl Hash for MapUserConfig {
@@ -231,12 +234,12 @@ mod tests {
                     },
                 ]),
                 expected_output: Ok(r"
-- user_arn: arn:test:user_1
+- userarn: arn:test:user_1
   username: user_1
   groups:
     - group_1
     - group_2
-- user_arn: arn:test:user_2
+- userarn: arn:test:user_2
   username: user_2
   groups:
     - group_2
@@ -256,7 +259,7 @@ mod tests {
                     ]),
                 }]),
                 expected_output: Ok(r"
-- user_arn: arn:test:user_1
+- userarn: arn:test:user_1
   username: user_1
   groups:
     - group_1
