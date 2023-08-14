@@ -4,6 +4,7 @@ repos:
     hooks:
     - id: check-yaml
       stages: [commit]
+      exclude: '^charts/*'
     - id: check-json
       stages: [commit]
     - id: check-toml
