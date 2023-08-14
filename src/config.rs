@@ -11,7 +11,7 @@ type IamK8sGroupMappingsRaw = String;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ConfigurationError {
-    #[error("Invalid IAM K8S group mapping `{raw_iam_k8s_group_mapping}`, should be: `iam_groupe_name->k8s_groupe_name`")]
+    #[error("Invalid IAM K8S group mapping `{raw_iam_k8s_group_mapping}`, should be: `iam_group_name->k8s_group_name`")]
     InvalidIamK8sGroupMapping { raw_iam_k8s_group_mapping: Arc<str> },
     #[error("K8s group name nor IAM group name cannot be empty: `{raw_iam_k8s_group_mapping}`")]
     EmptyGroupName { raw_iam_k8s_group_mapping: Arc<str> },
