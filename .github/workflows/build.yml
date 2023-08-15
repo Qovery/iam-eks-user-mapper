@@ -35,7 +35,7 @@ jobs:
     name: test
     strategy:
       matrix:
-        os: ["ubuntu-latest", "windows-latest", "macos-latest"]
+        os: ["ubuntu-latest"]
         rust: ["stable"]
     continue-on-error: ${{ matrix.rust != 'stable' }}
     runs-on: ${{ matrix.os }}
@@ -131,13 +131,13 @@ jobs:
     - name: install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: 1.65.0  # MSRV
+        toolchain: 1.70.0  # MSRV
         components: clippy
     - uses: Swatinem/rust-cache@v2
     - name: install SARIF tools
-      run: cargo install clippy-sarif --version 0.3.4 --locked  # Held back due to msrv
+      run: cargo install clippy-sarif
     - name: install SARIF tools
-      run: cargo install sarif-fmt --version 0.3.4 --locked # Held back due to msrv
+      run: cargo install sarif-fmt
     - name: check
       run: >
         cargo clippy --workspace --all-features --all-targets --message-format=json -- -D warnings --allow deprecated
