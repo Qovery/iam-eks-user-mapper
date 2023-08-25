@@ -5,9 +5,11 @@ mod kubernetes;
 
 use crate::aws::iam::{IamGroup, IamService};
 use crate::aws::AwsSdkConfig;
-use crate::config::IamK8sGroup;
+use crate::config::{Credentials, GroupUserSyncConfig, IamK8sGroup, SSORoleConfig};
 use crate::errors::Error;
-use crate::kubernetes::{IamArn, IamUserName, KubernetesGroup, KubernetesService, KubernetesUser};
+use crate::kubernetes::{
+    IamArn, IamUserName, KubernetesGroupName, KubernetesRole, KubernetesService, KubernetesUser,
+};
 use clap::Parser;
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
@@ -30,20 +32,29 @@ struct Args {
     /// Refresh interval in seconds between two user synchronization, e.q: 30
     #[arg(short = 'i', long, env, default_value_t = 60)]
     pub refresh_interval_seconds: u64,
+    /// Activate group user sync (requires `iam_k8s_groups` to be set)
+    #[clap(long, env, required = true, default_value_t = false)]
+    pub enable_group_user_sync: bool,
     /// IAM groups to be mapped into Kubernetes, e.q: Admins->system:masters
     ///
     /// Several mappings can be provided using comma separator, e.q: Admins->system:masters,Devops->system:devops
     ///
     /// Syntax is <IAM_GROUP>-><KUBERNETES_GROUP>,<IAM_GROUP_2>-><KUBERNETES_GROUP_2>,
-    #[clap(short = 'g', long, env, value_parser, num_args = 1.., value_delimiter = ',', required = true)]
+    #[clap(short = 'g', long, env, value_parser, num_args = 1.., value_delimiter = ',', required = false)]
     pub iam_k8s_groups: Vec<String>,
+    /// Activate SSO on the cluster (requires `iam_sso_role_arn` to be set)
+    #[clap(long, env, required = true, default_value_t = false)]
+    pub enable_sso: bool,
+    /// IAM SSO role arn
+    #[clap(long, env, value_delimiter = ',', required = false)]
+    pub iam_sso_role_arn: String,
     /// Activate verbose mode
     #[clap(short = 'v', long, env, default_value_t = false)]
     pub verbose: bool,
 }
 
 struct GroupsMappings {
-    raw: HashMap<IamGroup, KubernetesGroup>,
+    raw: HashMap<IamGroup, KubernetesGroupName>,
 }
 
 impl GroupsMappings {
@@ -61,7 +72,7 @@ impl GroupsMappings {
         HashSet::from_iter(self.raw.keys().cloned())
     }
 
-    fn k8s_group_for(&self, iam_groups: HashSet<IamGroup>) -> HashSet<KubernetesGroup> {
+    fn k8s_group_for(&self, iam_groups: HashSet<IamGroup>) -> HashSet<KubernetesGroupName> {
         let mut k8s_groups = HashSet::new();
 
         for iam_group in iam_groups {
@@ -80,31 +91,37 @@ impl GroupsMappings {
     }
 }
 
-async fn sync_iam_eks_users(
+async fn sync_iam_eks_users_and_roles(
     iam_client: &IamService,
     kubernetes_client: &KubernetesService,
-    groups_mappings: GroupsMappings,
+    groups_mappings: Option<&GroupsMappings>,
+    sso_role: Option<KubernetesRole>,
 ) -> Result<(), errors::Error> {
-    // get users from AWS groups
-    let iam_users = iam_client
-        .get_users_from_groups(groups_mappings.iam_groups())
-        .await
-        .map_err(|e| Error::Aws {
-            underlying_error: e.into(),
-        })?;
-
     // create kubernetes users to be added
-    let kubernetes_users: HashSet<KubernetesUser> = HashSet::from_iter(iam_users.iter().map(|u| {
-        KubernetesUser::new(
-            IamUserName::new(&u.user_name.to_string()),
-            IamArn::new(&u.arn.to_string()),
-            groups_mappings.k8s_group_for(u.groups.clone()),
-        )
-    }));
+    let kubernetes_users = match groups_mappings {
+        Some(gm) => {
+            // get users from AWS groups
+            let iam_users = iam_client
+                .get_users_from_groups(gm.iam_groups())
+                .await
+                .map_err(|e| Error::Aws {
+                    underlying_error: e.into(),
+                })?;
 
-    // create new users config map
+            Some(HashSet::from_iter(iam_users.iter().map(|u| {
+                KubernetesUser::new(
+                    IamUserName::new(&u.user_name.to_string()),
+                    IamArn::new(&u.arn.to_string()),
+                    gm.k8s_group_for(u.groups.clone()),
+                )
+            })))
+        }
+        None => None,
+    };
+
+    // create new users & roles config map
     kubernetes_client
-        .update_user_config_map("kube-system", "aws-auth", kubernetes_users)
+        .update_user_and_role_config_map("kube-system", "aws-auth", kubernetes_users, sso_role)
         .await
         .map_err(|e| Error::Kubernetes {
             underlying_error: e,
@@ -136,22 +153,31 @@ async fn main() -> Result<(), errors::Error> {
     let args = Args::parse();
 
     let config = config::Config::new(
-        args.aws_role_arn,
-        args.aws_default_region,
-        args.service_account_name,
+        Credentials::new(
+            args.aws_role_arn,
+            args.aws_default_region,
+            args.service_account_name,
+        ),
         Duration::from_secs(args.refresh_interval_seconds),
+        args.enable_group_user_sync,
         args.iam_k8s_groups,
+        args.enable_sso,
+        args.iam_sso_role_arn,
         args.verbose,
     )
     .map_err(|e| Error::Configuration {
         underlying_error: e,
     })?;
 
-    let aws_config = AwsSdkConfig::new(config.region, config.role_arn.as_str(), config.verbose)
-        .await
-        .map_err(|e| Error::Aws {
-            underlying_error: e,
-        })?;
+    let aws_config = AwsSdkConfig::new(
+        config.credentials.region,
+        config.credentials.role_arn.as_str(),
+        config.verbose,
+    )
+    .await
+    .map_err(|e| Error::Aws {
+        underlying_error: e,
+    })?;
 
     let iam_client = IamService::new(&aws_config, config.verbose);
 
@@ -167,13 +193,26 @@ async fn main() -> Result<(), errors::Error> {
         let _ = current_span.enter();
         let mut tick_interval = time::interval(config.refresh_interval);
 
+        let groups_mappings = match config.group_user_sync_config {
+            GroupUserSyncConfig::Disabled => None,
+            GroupUserSyncConfig::Enabled { iam_k8s_groups } => {
+                Some(GroupsMappings::new(iam_k8s_groups))
+            }
+        };
+
+        let sso_role = match config.sso_role_config {
+            SSORoleConfig::Disabled => None,
+            SSORoleConfig::Enabled { sso_role } => Some(sso_role),
+        };
+
         loop {
             tick_interval.tick().await;
-            info!("Syncing IAM EKS users");
-            if let Err(e) = sync_iam_eks_users(
+            info!("Syncing IAM EKS users & roles");
+            if let Err(e) = sync_iam_eks_users_and_roles(
                 &iam_client,
                 &kubernetes_client,
-                GroupsMappings::new(config.iam_k8s_groups.clone()),
+                groups_mappings.as_ref(),
+                sso_role.clone(),
             )
             .await
             {

@@ -12,8 +12,10 @@ use thiserror::Error;
 pub enum KubernetesError {
     #[error("Cluster not reachable: {raw_message}")]
     ClusterUnreachable { raw_message: Arc<str> },
-    #[error("Error while trying to serialize users maps to YAML: {raw_message}")]
+    #[error("Error while trying to serialize users map to YAML: {raw_message}")]
     CannotSerializeUsersMap { raw_message: Arc<str> },
+    #[error("Error while trying to serialize roles map to YAML: {raw_message}")]
+    CannotSerializeRolesMap { raw_message: Arc<str> },
     #[error("Cannot find config map `{config_map_name}` in namespace `{config_map_namespace}`: {raw_message}")]
     ConfigMapNotFound {
         config_map_name: Arc<str>,
@@ -44,6 +46,15 @@ impl Display for IamUserName {
 }
 
 #[derive(Eq, PartialEq)]
+pub struct IamRoleName(String);
+
+impl Display for IamRoleName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.as_str())
+    }
+}
+
+#[derive(Eq, PartialEq, Clone)]
 pub struct IamArn(String);
 
 impl IamArn {
@@ -59,15 +70,15 @@ impl Display for IamArn {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub struct KubernetesGroup(String);
+pub struct KubernetesGroupName(String);
 
-impl KubernetesGroup {
-    pub fn new(kubernetes_role: &str) -> KubernetesGroup {
-        KubernetesGroup(kubernetes_role.to_string())
+impl KubernetesGroupName {
+    pub fn new(kubernetes_role: &str) -> KubernetesGroupName {
+        KubernetesGroupName(kubernetes_role.to_string())
     }
 }
 
-impl Display for KubernetesGroup {
+impl Display for KubernetesGroupName {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.0.as_str())
     }
@@ -77,14 +88,14 @@ impl Display for KubernetesGroup {
 pub struct KubernetesUser {
     pub iam_user_name: IamUserName,
     pub iam_arn: IamArn,
-    pub roles: HashSet<KubernetesGroup>,
+    pub roles: HashSet<KubernetesGroupName>,
 }
 
 impl KubernetesUser {
     pub fn new(
         iam_user_name: IamUserName,
         iam_arn: IamArn,
-        roles: HashSet<KubernetesGroup>,
+        roles: HashSet<KubernetesGroupName>,
     ) -> KubernetesUser {
         KubernetesUser {
             iam_user_name,
@@ -101,6 +112,20 @@ impl Hash for KubernetesUser {
     }
 }
 
+#[derive(Eq, PartialEq, Clone)]
+pub struct KubernetesRole {
+    pub iam_role_arn: IamArn,
+    pub role_name: String,
+    pub groups: HashSet<KubernetesGroupName>,
+}
+
+impl Hash for KubernetesRole {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.iam_role_arn.to_string().to_lowercase().hash(state);
+        self.role_name.to_string().to_lowercase().hash(state);
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 struct MapUserConfig {
     #[serde(rename = "userarn")]
@@ -110,10 +135,48 @@ struct MapUserConfig {
     #[serde(rename = "groups")]
     groups: HashSet<String>,
 }
+
+impl From<KubernetesUser> for MapUserConfig {
+    fn from(value: KubernetesUser) -> Self {
+        MapUserConfig {
+            user_arn: value.iam_arn.to_string(),
+            username: value.iam_user_name.to_string(),
+            groups: value.roles.iter().map(|r| r.to_string()).collect(),
+        }
+    }
+}
+
 impl Hash for MapUserConfig {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.user_arn.to_lowercase().hash(state);
         self.username.to_lowercase().hash(state);
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+struct MapRoleConfig {
+    #[serde(rename = "rolearn")]
+    role_arn: String,
+    #[serde(rename = "rolename")]
+    rolename: String,
+    #[serde(rename = "groups")]
+    groups: HashSet<String>,
+}
+
+impl From<KubernetesRole> for MapRoleConfig {
+    fn from(value: KubernetesRole) -> Self {
+        MapRoleConfig {
+            role_arn: value.iam_role_arn.to_string(),
+            rolename: value.role_name.to_string(),
+            groups: value.groups.iter().map(|g| g.to_string()).collect(),
+        }
+    }
+}
+
+impl Hash for MapRoleConfig {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.role_arn.to_lowercase().hash(state);
+        self.rolename.to_lowercase().hash(state);
     }
 }
 
@@ -139,11 +202,7 @@ impl KubernetesService {
         kubernetes_users: HashSet<KubernetesUser>,
     ) -> Result<String, KubernetesError> {
         let user_config_map: HashSet<MapUserConfig> =
-            HashSet::from_iter(kubernetes_users.into_iter().map(|u| MapUserConfig {
-                user_arn: u.iam_arn.to_string(),
-                username: u.iam_user_name.to_string(),
-                groups: HashSet::from_iter(u.roles.iter().map(|r| r.to_string())),
-            }));
+            HashSet::from_iter(kubernetes_users.into_iter().map(MapUserConfig::from));
 
         match serde_yaml::to_string(&user_config_map) {
             Ok(s) => Ok(s),
@@ -153,11 +212,26 @@ impl KubernetesService {
         }
     }
 
-    pub async fn update_user_config_map(
+    fn generate_roles_config_map_yaml_string(
+        kubernetes_roles: HashSet<KubernetesRole>,
+    ) -> Result<String, KubernetesError> {
+        let role_config_map: HashSet<MapRoleConfig> =
+            HashSet::from_iter(kubernetes_roles.into_iter().map(MapRoleConfig::from));
+
+        match serde_yaml::to_string(&role_config_map) {
+            Ok(s) => Ok(s),
+            Err(e) => Err(KubernetesError::CannotSerializeRolesMap {
+                raw_message: Arc::from(e.to_string()),
+            }),
+        }
+    }
+
+    pub async fn update_user_and_role_config_map(
         &self,
         config_map_namespace: &str,
         config_map_name: &str,
-        kubernetes_users: HashSet<KubernetesUser>,
+        kubernetes_users: Option<HashSet<KubernetesUser>>,
+        kubernetes_sso_role: Option<KubernetesRole>,
     ) -> Result<(), KubernetesError> {
         let config_maps_api: Api<ConfigMap> =
             Api::namespaced(self.client.clone(), config_map_namespace); // TODO(benjaminch): avoid clone()
@@ -172,15 +246,52 @@ impl KubernetesService {
         })?;
 
         // update config map
-        let mut default_data = BTreeMap::new();
-        users_config_map
+        let mut default_config_map_data = BTreeMap::new();
+        let config_map_data = users_config_map
             .data
             .as_mut()
-            .unwrap_or(&mut default_data)
-            .insert(
+            .unwrap_or(&mut default_config_map_data);
+
+        // adding users
+        if let Some(kubernetes_users_to_add) = kubernetes_users {
+            config_map_data.insert(
                 "mapUsers".to_string(),
-                Self::generate_users_config_map_yaml_string(kubernetes_users)?,
+                Self::generate_users_config_map_yaml_string(kubernetes_users_to_add)?,
             );
+        }
+
+        // adding sso role if not there already
+        if let Some(sso_role_to_add) = kubernetes_sso_role {
+            let mut kubernetes_roles: HashSet<KubernetesRole> = config_map_data
+                .get("mapRoles")
+                .map(|raw| {
+                    let raw_roles: HashSet<MapRoleConfig> =
+                        serde_yaml::from_str(raw).unwrap_or_default();
+                    raw_roles
+                        .iter()
+                        .map(|r| KubernetesRole {
+                            role_name: r.rolename.to_string(),
+                            iam_role_arn: IamArn(r.role_arn.to_string()),
+                            groups: r
+                                .groups
+                                .iter()
+                                .map(|g| KubernetesGroupName(g.to_string()))
+                                .collect(),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            if !kubernetes_roles.contains(&sso_role_to_add) {
+                // role is not there, adding it
+                kubernetes_roles.insert(sso_role_to_add);
+
+                config_map_data.insert(
+                    "mapRoles".to_string(),
+                    Self::generate_roles_config_map_yaml_string(kubernetes_roles)?,
+                );
+            }
+        }
 
         match config_maps_api
             .replace(config_map_name, &PostParams::default(), &users_config_map)
@@ -199,8 +310,8 @@ impl KubernetesService {
 #[cfg(test)]
 mod tests {
     use crate::kubernetes::{
-        IamArn, IamUserName, KubernetesError, KubernetesGroup, KubernetesService, KubernetesUser,
-        MapUserConfig,
+        IamArn, IamUserName, KubernetesError, KubernetesGroupName, KubernetesService,
+        KubernetesUser, MapUserConfig,
     };
     use std::collections::HashSet;
 
@@ -220,16 +331,16 @@ mod tests {
                         iam_user_name: IamUserName::new("user_1"),
                         iam_arn: IamArn::new("arn:test:user_1"),
                         roles: HashSet::from_iter(vec![
-                            KubernetesGroup::new("group_1"),
-                            KubernetesGroup::new("group_2"),
+                            KubernetesGroupName::new("group_1"),
+                            KubernetesGroupName::new("group_2"),
                         ]),
                     },
                     KubernetesUser {
                         iam_user_name: IamUserName::new("user_2"),
                         iam_arn: IamArn::new("arn:test:user_2"),
                         roles: HashSet::from_iter(vec![
-                            KubernetesGroup::new("group_2"),
-                            KubernetesGroup::new("group_3"),
+                            KubernetesGroupName::new("group_2"),
+                            KubernetesGroupName::new("group_3"),
                         ]),
                     },
                 ]),
@@ -254,8 +365,8 @@ mod tests {
                     iam_user_name: IamUserName::new("user_1"),
                     iam_arn: IamArn::new("arn:test:user_1"),
                     roles: HashSet::from_iter(vec![
-                        KubernetesGroup::new("group_1"),
-                        KubernetesGroup::new("group_2"),
+                        KubernetesGroupName::new("group_1"),
+                        KubernetesGroupName::new("group_2"),
                     ]),
                 }]),
                 expected_output: Ok(r"
