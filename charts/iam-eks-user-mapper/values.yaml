@@ -22,10 +22,10 @@ selectorLabels:
   app: iam-eks-user-mapper
 
 image:
-  repository: ""
+  repository: "ghcr.io/qovery/iam-eks-user-mapper"
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: "main"
 
 imagePullSecrets: []
 nameOverride: ""
