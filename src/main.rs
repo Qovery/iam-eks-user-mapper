@@ -154,9 +154,9 @@ async fn main() -> Result<(), errors::Error> {
 
     let config = config::Config::new(
         Credentials::new(
-            args.aws_role_arn,
             args.aws_default_region,
             args.service_account_name,
+            args.aws_role_arn,
         ),
         Duration::from_secs(args.refresh_interval_seconds),
         args.enable_group_user_sync,
