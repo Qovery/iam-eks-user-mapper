@@ -7,6 +7,7 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use thiserror::Error;
+use tracing::info;
 
 #[derive(Error, Debug, Eq, PartialEq)]
 pub enum KubernetesError {
@@ -115,14 +116,20 @@ impl Hash for KubernetesUser {
 #[derive(Eq, PartialEq, Clone)]
 pub struct KubernetesRole {
     pub iam_role_arn: IamArn,
-    pub role_name: String,
+    pub role_name: Option<String>,
+    pub user_name: Option<String>,
     pub groups: HashSet<KubernetesGroupName>,
 }
 
 impl Hash for KubernetesRole {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.iam_role_arn.to_string().to_lowercase().hash(state);
-        self.role_name.to_string().to_lowercase().hash(state);
+        if let Some(role_name) = &self.role_name {
+            role_name.to_string().to_lowercase().hash(state);
+        }
+        if let Some(user_name) = &self.user_name {
+            user_name.to_string().to_lowercase().hash(state);
+        }
     }
 }
 
@@ -158,7 +165,9 @@ struct MapRoleConfig {
     #[serde(rename = "rolearn")]
     role_arn: String,
     #[serde(rename = "rolename")]
-    rolename: String,
+    rolename: Option<String>,
+    #[serde(rename = "username")]
+    username: Option<String>,
     #[serde(rename = "groups")]
     groups: HashSet<String>,
 }
@@ -167,7 +176,8 @@ impl From<KubernetesRole> for MapRoleConfig {
     fn from(value: KubernetesRole) -> Self {
         MapRoleConfig {
             role_arn: value.iam_role_arn.to_string(),
-            rolename: value.role_name.to_string(),
+            rolename: value.role_name,
+            username: value.user_name,
             groups: value.groups.iter().map(|g| g.to_string()).collect(),
         }
     }
@@ -176,7 +186,12 @@ impl From<KubernetesRole> for MapRoleConfig {
 impl Hash for MapRoleConfig {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.role_arn.to_lowercase().hash(state);
-        self.rolename.to_lowercase().hash(state);
+        if let Some(rolename) = &self.rolename {
+            rolename.to_lowercase().hash(state);
+        }
+        if let Some(username) = &self.username {
+            username.to_lowercase().hash(state);
+        }
     }
 }
 
@@ -267,10 +282,12 @@ impl KubernetesService {
                 .map(|raw| {
                     let raw_roles: HashSet<MapRoleConfig> =
                         serde_yaml::from_str(raw).unwrap_or_default();
+
                     raw_roles
                         .iter()
                         .map(|r| KubernetesRole {
-                            role_name: r.rolename.to_string(),
+                            role_name: r.rolename.clone(),
+                            user_name: r.username.clone(),
                             iam_role_arn: IamArn(r.role_arn.to_string()),
                             groups: r
                                 .groups
