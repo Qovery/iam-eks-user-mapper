@@ -7,7 +7,6 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use thiserror::Error;
-use tracing::info;
 
 #[derive(Error, Debug, Eq, PartialEq)]
 pub enum KubernetesError {
