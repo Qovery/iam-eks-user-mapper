@@ -14,8 +14,18 @@ pub enum KubernetesError {
     ClusterUnreachable { raw_message: Arc<str> },
     #[error("Error while trying to serialize users map to YAML: {raw_message}")]
     CannotSerializeUsersMap { raw_message: Arc<str> },
+    #[error("Error while trying to deserialize users map from YAML: {raw_message}")]
+    CannotDeserializeUsersMap {
+        raw_message: Arc<str>,
+        underlying_error: Arc<str>,
+    },
     #[error("Error while trying to serialize roles map to YAML: {raw_message}")]
     CannotSerializeRolesMap { raw_message: Arc<str> },
+    #[error("Error while trying to deserialize roles map from YAML: {raw_message}")]
+    CannotDeserializeRolesMap {
+        raw_message: Arc<str>,
+        underlying_error: Arc<str>,
+    },
     #[error("Cannot find config map `{config_map_name}` in namespace `{config_map_namespace}`: {raw_message}")]
     ConfigMapNotFound {
         config_map_name: Arc<str>,
@@ -101,6 +111,16 @@ impl KubernetesUser {
             iam_user_name,
             iam_arn,
             roles,
+        }
+    }
+}
+
+impl From<MapUserConfig> for KubernetesUser {
+    fn from(value: MapUserConfig) -> Self {
+        KubernetesUser {
+            iam_user_name: IamUserName(value.username),
+            iam_arn: IamArn(value.user_arn),
+            roles: HashSet::from_iter(value.groups.into_iter().map(KubernetesGroupName)),
         }
     }
 }
@@ -244,7 +264,7 @@ impl KubernetesService {
         &self,
         config_map_namespace: &str,
         config_map_name: &str,
-        kubernetes_users: Option<HashSet<KubernetesUser>>,
+        kubernetes_users_to_be_added: Option<HashSet<KubernetesUser>>,
         kubernetes_sso_role: Option<KubernetesRole>,
     ) -> Result<(), KubernetesError> {
         let config_maps_api: Api<ConfigMap> =
@@ -267,36 +287,66 @@ impl KubernetesService {
             .unwrap_or(&mut default_config_map_data);
 
         // adding users
-        if let Some(kubernetes_users_to_add) = kubernetes_users {
-            config_map_data.insert(
-                "mapUsers".to_string(),
-                Self::generate_users_config_map_yaml_string(kubernetes_users_to_add)?,
-            );
+        // make sure existing users are kept
+        if let Some(kubernetes_users_to_add) = kubernetes_users_to_be_added {
+            if let Some(kubernetes_existing_users_raw_yaml) = config_map_data.get("mapUsers") {
+                let mut raw_existing_users: HashSet<KubernetesUser> =
+                    serde_yaml::from_str::<HashSet<MapUserConfig>>(
+                        kubernetes_existing_users_raw_yaml,
+                    )
+                    .map_err(|e| KubernetesError::CannotDeserializeUsersMap {
+                        raw_message: Arc::from(kubernetes_existing_users_raw_yaml.as_str()),
+                        underlying_error: Arc::from(e.to_string().as_str()),
+                    })?
+                    .into_iter()
+                    .map(KubernetesUser::from)
+                    .collect();
+
+                let mut users_added = false;
+                for user_to_add in kubernetes_users_to_add {
+                    if !raw_existing_users.contains(&user_to_add) {
+                        // user is not there, adding it
+                        raw_existing_users.insert(user_to_add);
+                        users_added = true;
+                    }
+                }
+
+                if users_added {
+                    config_map_data.insert(
+                        "mapUsers".to_string(),
+                        Self::generate_users_config_map_yaml_string(raw_existing_users)?,
+                    );
+                }
+            }
         }
 
         // adding sso role if not there already
+        // make sure existing roles are kept
+        let mut kubernetes_roles: HashSet<KubernetesRole> = HashSet::new();
         if let Some(sso_role_to_add) = kubernetes_sso_role {
-            let mut kubernetes_roles: HashSet<KubernetesRole> = config_map_data
-                .get("mapRoles")
-                .map(|raw| {
-                    let raw_roles: HashSet<MapRoleConfig> =
-                        serde_yaml::from_str(raw).unwrap_or_default();
+            if let Some(kubernetes_existing_roles_raw_yaml) = config_map_data.get("mapRoles") {
+                let raw_existing_roles: HashSet<MapRoleConfig> =
+                    serde_yaml::from_str(kubernetes_existing_roles_raw_yaml).map_err(|e| {
+                        KubernetesError::CannotDeserializeRolesMap {
+                            raw_message: Arc::from(kubernetes_existing_roles_raw_yaml.as_str()),
+                            underlying_error: Arc::from(e.to_string().as_str()),
+                        }
+                    })?;
 
-                    raw_roles
-                        .iter()
-                        .map(|r| KubernetesRole {
-                            role_name: r.rolename.clone(),
-                            user_name: r.username.clone(),
-                            iam_role_arn: IamArn(r.role_arn.to_string()),
-                            groups: r
-                                .groups
-                                .iter()
-                                .map(|g| KubernetesGroupName(g.to_string()))
-                                .collect(),
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
+                kubernetes_roles = raw_existing_roles
+                    .iter()
+                    .map(|r| KubernetesRole {
+                        role_name: r.rolename.clone(),
+                        user_name: r.username.clone(),
+                        iam_role_arn: IamArn(r.role_arn.to_string()),
+                        groups: r
+                            .groups
+                            .iter()
+                            .map(|g| KubernetesGroupName(g.to_string()))
+                            .collect(),
+                    })
+                    .collect()
+            }
 
             if !kubernetes_roles.contains(&sso_role_to_add) {
                 // role is not there, adding it
