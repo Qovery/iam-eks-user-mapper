@@ -289,41 +289,41 @@ impl KubernetesService {
         // adding users
         // make sure existing users are kept
         if let Some(kubernetes_users_to_add) = kubernetes_users_to_be_added {
+            let mut kubernetes_users: HashSet<KubernetesUser> = HashSet::new();
             if let Some(kubernetes_existing_users_raw_yaml) = config_map_data.get("mapUsers") {
-                let mut raw_existing_users: HashSet<KubernetesUser> =
-                    serde_yaml::from_str::<HashSet<MapUserConfig>>(
-                        kubernetes_existing_users_raw_yaml,
-                    )
-                    .map_err(|e| KubernetesError::CannotDeserializeUsersMap {
-                        raw_message: Arc::from(kubernetes_existing_users_raw_yaml.as_str()),
-                        underlying_error: Arc::from(e.to_string().as_str()),
-                    })?
-                    .into_iter()
-                    .map(KubernetesUser::from)
-                    .collect();
+                kubernetes_users = serde_yaml::from_str::<HashSet<MapUserConfig>>(
+                    kubernetes_existing_users_raw_yaml,
+                )
+                .map_err(|e| KubernetesError::CannotDeserializeUsersMap {
+                    raw_message: Arc::from(kubernetes_existing_users_raw_yaml.as_str()),
+                    underlying_error: Arc::from(e.to_string().as_str()),
+                })?
+                .into_iter()
+                .map(KubernetesUser::from)
+                .collect();
+            }
 
-                let mut users_added = false;
-                for user_to_add in kubernetes_users_to_add {
-                    if !raw_existing_users.contains(&user_to_add) {
-                        // user is not there, adding it
-                        raw_existing_users.insert(user_to_add);
-                        users_added = true;
-                    }
+            let mut users_added = false;
+            for user_to_add in kubernetes_users_to_add {
+                if !kubernetes_users.contains(&user_to_add) {
+                    // user is not there, adding it
+                    kubernetes_users.insert(user_to_add);
+                    users_added = true;
                 }
+            }
 
-                if users_added {
-                    config_map_data.insert(
-                        "mapUsers".to_string(),
-                        Self::generate_users_config_map_yaml_string(raw_existing_users)?,
-                    );
-                }
+            if users_added {
+                config_map_data.insert(
+                    "mapUsers".to_string(),
+                    Self::generate_users_config_map_yaml_string(kubernetes_users)?,
+                );
             }
         }
 
         // adding sso role if not there already
         // make sure existing roles are kept
-        let mut kubernetes_roles: HashSet<KubernetesRole> = HashSet::new();
         if let Some(sso_role_to_add) = kubernetes_sso_role {
+            let mut kubernetes_roles: HashSet<KubernetesRole> = HashSet::new();
             if let Some(kubernetes_existing_roles_raw_yaml) = config_map_data.get("mapRoles") {
                 let raw_existing_roles: HashSet<MapRoleConfig> =
                     serde_yaml::from_str(kubernetes_existing_roles_raw_yaml).map_err(|e| {
