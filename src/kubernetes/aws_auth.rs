@@ -59,12 +59,24 @@ impl AwsAuthBuilder {
 
     pub fn build(&self) -> AwsAuth {
         // computing users
-        let mut kubernetes_users: HashSet<KubernetesUser> = HashSet::from_iter(self.users.clone());
+        let mut kubernetes_users: HashSet<KubernetesUser> = HashSet::from_iter(
+            self.users
+                .clone()
+                .into_iter()
+                // remove users already there but not flagged as synced since those will be added
+                .filter(|u| !self.new_synced_users.contains(u)),
+        );
         // adding new synced users
         kubernetes_users.extend(self.new_synced_users.clone());
 
         // computing roles
-        let mut kubernetes_roles: HashSet<KubernetesRole> = HashSet::from_iter(self.roles.clone());
+        let mut kubernetes_roles: HashSet<KubernetesRole> = HashSet::from_iter(
+            self.roles
+                .clone()
+                .into_iter()
+                // remove roles already there but not flagged as synced since those will be added
+                .filter(|r| !self.new_synced_roles.contains(r)),
+        );
         // adding new synced roles
         kubernetes_roles.extend(self.new_synced_roles.clone());
 
@@ -196,6 +208,36 @@ mod tests {
                     ),
                 ]),
                 _description: "case 4: existing users, some new users",
+            },
+            TestCase {
+                existing_users: HashSet::from_iter(vec![KubernetesUser::new(
+                    IamUserName::new("user_1"),
+                    IamArn::new("arn::user_1"),
+                    HashSet::from_iter(vec![
+                        KubernetesGroupName::new("group_1"),
+                        KubernetesGroupName::new("group_2"),
+                    ]),
+                    None,
+                )]),
+                new_users_to_be_added: HashSet::from_iter(vec![KubernetesUser::new(
+                    IamUserName::new("user_1"),
+                    IamArn::new("arn::user_1"),
+                    HashSet::from_iter(vec![
+                        KubernetesGroupName::new("group_1"),
+                        KubernetesGroupName::new("group_2"),
+                    ]),
+                    Some(SyncedBy::IamEksUserMapper),
+                )]),
+                expected_users: HashSet::from_iter(vec![KubernetesUser::new(
+                    IamUserName::new("user_1"),
+                    IamArn::new("arn::user_1"),
+                    HashSet::from_iter(vec![
+                        KubernetesGroupName::new("group_1"),
+                        KubernetesGroupName::new("group_2"),
+                    ]),
+                    Some(SyncedBy::IamEksUserMapper),
+                )]),
+                _description: "case 5: existing user without synced by flag, same new user with new synced by field",
             },
         ];
 
@@ -379,6 +421,41 @@ mod tests {
                     ),
                 ]),
                 _description: "case 4: existing roles, some new roles",
+            },
+            TestCase {
+                existing_roles: HashSet::from_iter(vec![KubernetesRole::new(
+                    IamArn::new("arn::role_1"),
+                    Some("role_1".to_string()),
+                    None,
+                    HashSet::from_iter(vec![
+                        KubernetesGroupName::new("group_1"),
+                        KubernetesGroupName::new("group_2"),
+                    ]),
+                    None,
+                )]),
+                new_roles_to_be_added: HashSet::from_iter(vec![KubernetesRole::new(
+                    IamArn::new("arn::role_1"),
+                    Some("role_1".to_string()),
+                    None,
+                    HashSet::from_iter(vec![
+                        KubernetesGroupName::new("group_1"),
+                        KubernetesGroupName::new("group_2"),
+                    ]),
+                    Some(SyncedBy::IamEksUserMapper),
+                )]),
+                expected_roles: HashSet::from_iter(vec![
+                    KubernetesRole::new(
+                        IamArn::new("arn::role_1"),
+                        Some("role_1".to_string()),
+                        None,
+                        HashSet::from_iter(vec![
+                            KubernetesGroupName::new("group_1"),
+                            KubernetesGroupName::new("group_2"),
+                        ]),
+                        Some(SyncedBy::IamEksUserMapper),
+                    ),
+                ]),
+                _description: "case 5: existing role without synced by flag, same new role with new synced by field",
             },
         ];
 

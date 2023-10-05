@@ -106,7 +106,7 @@ impl Display for KubernetesGroupName {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct KubernetesUser {
     pub iam_user_name: IamUserName,
     pub iam_arn: IamArn,
@@ -155,7 +155,17 @@ impl Hash for KubernetesUser {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+impl PartialEq for KubernetesUser {
+    fn eq(&self, other: &Self) -> bool {
+        self.roles == other.roles
+            && self.iam_arn == other.iam_arn
+            && self.iam_user_name == other.iam_user_name
+    }
+}
+
+impl Eq for KubernetesUser {}
+
+#[derive(Debug, Clone)]
 pub struct KubernetesRole {
     pub iam_role_arn: IamArn,
     pub role_name: Option<String>,
@@ -199,6 +209,17 @@ impl Hash for KubernetesRole {
         }
     }
 }
+
+impl PartialEq for KubernetesRole {
+    fn eq(&self, other: &Self) -> bool {
+        self.groups == other.groups
+            && self.iam_role_arn == other.iam_role_arn
+            && self.user_name == other.user_name
+            && self.role_name == other.role_name
+    }
+}
+
+impl Eq for KubernetesRole {}
 
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 struct MapUserConfig {
