@@ -319,7 +319,7 @@ impl KubernetesService {
         kubernetes_users: HashSet<KubernetesUser>,
     ) -> Result<String, KubernetesError> {
         let user_config_map: HashSet<MapUserConfig> =
-            HashSet::from_iter(kubernetes_users.into_iter().map(|u| MapUserConfig::from(u)));
+            HashSet::from_iter(kubernetes_users.into_iter().map(MapUserConfig::from));
 
         match serde_yaml::to_string(&user_config_map) {
             Ok(s) => Ok(s),
@@ -333,7 +333,7 @@ impl KubernetesService {
         kubernetes_roles: HashSet<KubernetesRole>,
     ) -> Result<String, KubernetesError> {
         let role_config_map: HashSet<MapRoleConfig> =
-            HashSet::from_iter(kubernetes_roles.into_iter().map(|r| MapRoleConfig::from(r)));
+            HashSet::from_iter(kubernetes_roles.into_iter().map(MapRoleConfig::from));
 
         match serde_yaml::to_string(&role_config_map) {
             Ok(s) => Ok(s),

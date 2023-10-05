@@ -135,15 +135,13 @@ impl Config {
                     };
 
                 SSORoleConfig::Enabled {
-                    sso_role: KubernetesRole {
-                        iam_role_arn: sanitized_role_arn,
-                        role_name: Some("cluster-admin-sso".to_string()), // TODO(benjaminch): can be a parameter at some point
-                        user_name: None,
-                        groups: HashSet::from_iter(vec![KubernetesGroupName::new(
-                            "system:masters",
-                        )]), // TODO(benjaminch): can be a parameter at some point
-                        synced_by: Some(SyncedBy::IamEksUserMapper), // <- managed by the tool
-                    },
+                    sso_role: KubernetesRole::new(
+                        sanitized_role_arn,
+                        Some("cluster-admin-sso".to_string()), // TODO(benjaminch): can be a parameter at some point
+                        None,
+                        HashSet::from_iter(vec![KubernetesGroupName::new("system:masters")]),
+                        Some(SyncedBy::IamEksUserMapper), // <- managed by the tool
+                    ),
                 }
             }
             false => SSORoleConfig::Disabled,
