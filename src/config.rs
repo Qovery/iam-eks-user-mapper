@@ -1,4 +1,4 @@
-use crate::kubernetes::{IamArn, KubernetesGroupName, KubernetesRole};
+use crate::kubernetes::{IamArn, KubernetesGroupName, KubernetesRole, SyncedBy};
 use crate::IamGroup;
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -142,6 +142,7 @@ impl Config {
                         groups: HashSet::from_iter(vec![KubernetesGroupName::new(
                             "system:masters",
                         )]), // TODO(benjaminch): can be a parameter at some point
+                        synced_by: Some(SyncedBy::IamEksUserMapper), // <- managed by the tool
                     },
                 }
             }

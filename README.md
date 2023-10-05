@@ -182,6 +182,15 @@ Once you've got your CLI configured and an `AWSReservedSSO_` role in IAM:
     --iam-sso-role-arn "arn:aws:iam::84[..]37:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_53b82e109c5e2cac"
 ```
 
+## Good to know
+The tool flags automatically synced entries via a custom field `syncedBy` set to `iam-eks-user-mapper`. This way, if you delete users from synced group and / or deactivate SSO sync or group sync, users / roles will be removed automatically.
+```
+│ - userarn: arn:aws:iam::843237546537:user/pleco
+│   username: pleco
+│   syncedBy: iam-eks-user-mapper
+│   groups:
+│   - system:masters
+```
 
 ## Want to contribute?
 This tool is far from perfect and we will be happy to have people helping making it better.

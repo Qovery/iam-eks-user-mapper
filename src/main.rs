@@ -9,6 +9,7 @@ use crate::config::{Credentials, GroupUserSyncConfig, IamK8sGroup, SSORoleConfig
 use crate::errors::Error;
 use crate::kubernetes::{
     IamArn, IamUserName, KubernetesGroupName, KubernetesRole, KubernetesService, KubernetesUser,
+    SyncedBy,
 };
 use clap::Parser;
 use std::collections::{HashMap, HashSet};
@@ -113,6 +114,7 @@ async fn sync_iam_eks_users_and_roles(
                     IamUserName::new(&u.user_name.to_string()),
                     IamArn::new(&u.arn.to_string()),
                     gm.k8s_group_for(u.groups.clone()),
+                    Some(SyncedBy::IamEksUserMapper), // <- those users are managed by the tool
                 )
             })))
         }

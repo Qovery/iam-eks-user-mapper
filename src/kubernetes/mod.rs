@@ -1,3 +1,6 @@
+mod aws_auth;
+
+use crate::kubernetes::aws_auth::AwsAuthBuilder;
 use k8s_openapi::api::core::v1::ConfigMap;
 use kube::api::PostParams;
 use kube::{Api, Client};
@@ -40,7 +43,16 @@ pub enum KubernetesError {
     },
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum SyncedBy {
+    #[serde(rename = "iam-eks-user-mapper")]
+    IamEksUserMapper,
+    #[serde(rename = "unknown")]
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IamUserName(String);
 
 impl IamUserName {
@@ -64,7 +76,7 @@ impl Display for IamRoleName {
     }
 }
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct IamArn(String);
 
 impl IamArn {
@@ -94,11 +106,12 @@ impl Display for KubernetesGroupName {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct KubernetesUser {
     pub iam_user_name: IamUserName,
     pub iam_arn: IamArn,
     pub roles: HashSet<KubernetesGroupName>,
+    pub synced_by: Option<SyncedBy>,
 }
 
 impl KubernetesUser {
@@ -106,12 +119,21 @@ impl KubernetesUser {
         iam_user_name: IamUserName,
         iam_arn: IamArn,
         roles: HashSet<KubernetesGroupName>,
+        synced_by: Option<SyncedBy>,
     ) -> KubernetesUser {
         KubernetesUser {
             iam_user_name,
             iam_arn,
             roles,
+            synced_by,
         }
+    }
+
+    pub fn new_synced_from(u: KubernetesUser, synced_by: SyncedBy) -> KubernetesUser {
+        let mut synced_u = u.clone();
+        synced_u.synced_by = Some(synced_by);
+
+        synced_u
     }
 }
 
@@ -121,6 +143,7 @@ impl From<MapUserConfig> for KubernetesUser {
             iam_user_name: IamUserName(value.username),
             iam_arn: IamArn(value.user_arn),
             roles: HashSet::from_iter(value.groups.into_iter().map(KubernetesGroupName)),
+            synced_by: value.synced_by,
         }
     }
 }
@@ -132,12 +155,37 @@ impl Hash for KubernetesUser {
     }
 }
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct KubernetesRole {
     pub iam_role_arn: IamArn,
     pub role_name: Option<String>,
     pub user_name: Option<String>,
     pub groups: HashSet<KubernetesGroupName>,
+    pub synced_by: Option<SyncedBy>,
+}
+
+impl KubernetesRole {
+    pub fn new(
+        iam_role_arn: IamArn,
+        role_name: Option<String>,
+        user_name: Option<String>,
+        groups: HashSet<KubernetesGroupName>,
+        synced_by: Option<SyncedBy>,
+    ) -> Self {
+        Self {
+            iam_role_arn,
+            role_name,
+            user_name,
+            groups,
+            synced_by,
+        }
+    }
+    pub fn new_synced_from(r: KubernetesRole, synced_by: SyncedBy) -> KubernetesRole {
+        let mut synced_r = r.clone();
+        synced_r.synced_by = Some(synced_by);
+
+        synced_r
+    }
 }
 
 impl Hash for KubernetesRole {
@@ -160,6 +208,10 @@ struct MapUserConfig {
     username: String,
     #[serde(rename = "groups")]
     groups: HashSet<String>,
+    #[serde(rename = "syncedBy")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    synced_by: Option<SyncedBy>,
 }
 
 impl From<KubernetesUser> for MapUserConfig {
@@ -168,6 +220,7 @@ impl From<KubernetesUser> for MapUserConfig {
             user_arn: value.iam_arn.to_string(),
             username: value.iam_user_name.to_string(),
             groups: value.roles.iter().map(|r| r.to_string()).collect(),
+            synced_by: value.synced_by,
         }
     }
 }
@@ -184,11 +237,19 @@ struct MapRoleConfig {
     #[serde(rename = "rolearn")]
     role_arn: String,
     #[serde(rename = "rolename")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     rolename: Option<String>,
     #[serde(rename = "username")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     username: Option<String>,
     #[serde(rename = "groups")]
     groups: HashSet<String>,
+    #[serde(rename = "syncedBy")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    synced_by: Option<SyncedBy>,
 }
 
 impl From<KubernetesRole> for MapRoleConfig {
@@ -198,6 +259,7 @@ impl From<KubernetesRole> for MapRoleConfig {
             rolename: value.role_name,
             username: value.user_name,
             groups: value.groups.iter().map(|g| g.to_string()).collect(),
+            synced_by: value.synced_by,
         }
     }
 }
@@ -236,7 +298,7 @@ impl KubernetesService {
         kubernetes_users: HashSet<KubernetesUser>,
     ) -> Result<String, KubernetesError> {
         let user_config_map: HashSet<MapUserConfig> =
-            HashSet::from_iter(kubernetes_users.into_iter().map(MapUserConfig::from));
+            HashSet::from_iter(kubernetes_users.into_iter().map(|u| MapUserConfig::from(u)));
 
         match serde_yaml::to_string(&user_config_map) {
             Ok(s) => Ok(s),
@@ -250,7 +312,7 @@ impl KubernetesService {
         kubernetes_roles: HashSet<KubernetesRole>,
     ) -> Result<String, KubernetesError> {
         let role_config_map: HashSet<MapRoleConfig> =
-            HashSet::from_iter(kubernetes_roles.into_iter().map(MapRoleConfig::from));
+            HashSet::from_iter(kubernetes_roles.into_iter().map(|r| MapRoleConfig::from(r)));
 
         match serde_yaml::to_string(&role_config_map) {
             Ok(s) => Ok(s),
@@ -265,7 +327,7 @@ impl KubernetesService {
         config_map_namespace: &str,
         config_map_name: &str,
         kubernetes_users_to_be_added: Option<HashSet<KubernetesUser>>,
-        kubernetes_sso_role: Option<KubernetesRole>,
+        kubernetes_sso_role_to_be_added: Option<KubernetesRole>,
     ) -> Result<(), KubernetesError> {
         let config_maps_api: Api<ConfigMap> =
             Api::namespaced(self.client.clone(), config_map_namespace); // TODO(benjaminch): avoid clone()
@@ -286,55 +348,35 @@ impl KubernetesService {
             .as_mut()
             .unwrap_or(&mut default_config_map_data);
 
-        // adding users
-        // make sure existing users are kept
-        if let Some(kubernetes_users_to_add) = kubernetes_users_to_be_added {
-            let mut kubernetes_users: HashSet<KubernetesUser> = HashSet::new();
-            if let Some(kubernetes_existing_users_raw_yaml) = config_map_data.get("mapUsers") {
-                kubernetes_users = serde_yaml::from_str::<HashSet<MapUserConfig>>(
-                    kubernetes_existing_users_raw_yaml,
-                )
-                .map_err(|e| KubernetesError::CannotDeserializeUsersMap {
-                    raw_message: Arc::from(kubernetes_existing_users_raw_yaml.as_str()),
-                    underlying_error: Arc::from(e.to_string().as_str()),
-                })?
-                .into_iter()
-                .map(KubernetesUser::from)
-                .collect();
-            }
-
-            let mut users_added = false;
-            for user_to_add in kubernetes_users_to_add {
-                if !kubernetes_users.contains(&user_to_add) {
-                    // user is not there, adding it
-                    kubernetes_users.insert(user_to_add);
-                    users_added = true;
-                }
-            }
-
-            if users_added {
-                config_map_data.insert(
-                    "mapUsers".to_string(),
-                    Self::generate_users_config_map_yaml_string(kubernetes_users)?,
-                );
-            }
-        }
-
-        // adding sso role if not there already
-        // make sure existing roles are kept
-        if let Some(sso_role_to_add) = kubernetes_sso_role {
-            let mut kubernetes_roles: HashSet<KubernetesRole> = HashSet::new();
-            if let Some(kubernetes_existing_roles_raw_yaml) = config_map_data.get("mapRoles") {
-                let raw_existing_roles: HashSet<MapRoleConfig> =
-                    serde_yaml::from_str(kubernetes_existing_roles_raw_yaml).map_err(|e| {
-                        KubernetesError::CannotDeserializeRolesMap {
-                            raw_message: Arc::from(kubernetes_existing_roles_raw_yaml.as_str()),
-                            underlying_error: Arc::from(e.to_string().as_str()),
-                        }
-                    })?;
-
-                kubernetes_roles = raw_existing_roles
-                    .iter()
+        let aws_auth = AwsAuthBuilder::new(
+            // get existing users from configmap
+            match config_map_data.get("mapUsers") {
+                None => HashSet::with_capacity(0),
+                Some(kubernetes_existing_users_raw_yaml) => HashSet::from_iter(
+                    serde_yaml::from_str::<HashSet<MapUserConfig>>(
+                        kubernetes_existing_users_raw_yaml,
+                    )
+                    .map_err(|e| KubernetesError::CannotDeserializeUsersMap {
+                        raw_message: Arc::from(kubernetes_existing_users_raw_yaml.as_str()),
+                        underlying_error: Arc::from(e.to_string().as_str()),
+                    })?
+                    .into_iter()
+                    .map(KubernetesUser::from)
+                    .collect::<Vec<_>>(),
+                ),
+            },
+            // get existing roles from configmap
+            match config_map_data.get("mapRoles") {
+                None => HashSet::with_capacity(0),
+                Some(kubernetes_existing_roles_raw_yaml) => HashSet::from_iter(
+                    serde_yaml::from_str::<HashSet<MapRoleConfig>>(
+                        kubernetes_existing_roles_raw_yaml,
+                    )
+                    .map_err(|e| KubernetesError::CannotDeserializeRolesMap {
+                        raw_message: Arc::from(kubernetes_existing_roles_raw_yaml.as_str()),
+                        underlying_error: Arc::from(e.to_string().as_str()),
+                    })?
+                    .into_iter()
                     .map(|r| KubernetesRole {
                         role_name: r.rolename.clone(),
                         user_name: r.username.clone(),
@@ -344,20 +386,30 @@ impl KubernetesService {
                             .iter()
                             .map(|g| KubernetesGroupName(g.to_string()))
                             .collect(),
+                        synced_by: r.synced_by.clone(),
                     })
-                    .collect()
-            }
+                    .collect::<Vec<_>>(),
+                ),
+            },
+        )
+        .new_synced_users(kubernetes_users_to_be_added.unwrap_or_default())
+        .new_synced_roles(match kubernetes_sso_role_to_be_added {
+            Some(sso_role) => HashSet::from_iter(vec![sso_role]),
+            None => HashSet::with_capacity(0),
+        })
+        .build();
 
-            if !kubernetes_roles.contains(&sso_role_to_add) {
-                // role is not there, adding it
-                kubernetes_roles.insert(sso_role_to_add);
+        // adding users
+        config_map_data.insert(
+            "mapUsers".to_string(),
+            Self::generate_users_config_map_yaml_string(aws_auth.users)?,
+        );
 
-                config_map_data.insert(
-                    "mapRoles".to_string(),
-                    Self::generate_roles_config_map_yaml_string(kubernetes_roles)?,
-                );
-            }
-        }
+        // adding sso roles
+        config_map_data.insert(
+            "mapRoles".to_string(),
+            Self::generate_roles_config_map_yaml_string(aws_auth.roles)?,
+        );
 
         match config_maps_api
             .replace(config_map_name, &PostParams::default(), &users_config_map)
@@ -376,8 +428,8 @@ impl KubernetesService {
 #[cfg(test)]
 mod tests {
     use crate::kubernetes::{
-        IamArn, IamUserName, KubernetesError, KubernetesGroupName, KubernetesService,
-        KubernetesUser, MapUserConfig,
+        IamArn, IamUserName, KubernetesError, KubernetesGroupName, KubernetesRole,
+        KubernetesService, KubernetesUser, MapRoleConfig, MapUserConfig, SyncedBy,
     };
     use std::collections::HashSet;
 
@@ -400,6 +452,7 @@ mod tests {
                             KubernetesGroupName::new("group_1"),
                             KubernetesGroupName::new("group_2"),
                         ]),
+                        synced_by: None,
                     },
                     KubernetesUser {
                         iam_user_name: IamUserName::new("user_2"),
@@ -408,6 +461,16 @@ mod tests {
                             KubernetesGroupName::new("group_2"),
                             KubernetesGroupName::new("group_3"),
                         ]),
+                        synced_by: None,
+                    },
+                    KubernetesUser {
+                        iam_user_name: IamUserName::new("user_3"),
+                        iam_arn: IamArn::new("arn:test:user_3"),
+                        roles: HashSet::from_iter(vec![
+                            KubernetesGroupName::new("group_3"),
+                            KubernetesGroupName::new("group_4"),
+                        ]),
+                        synced_by: Some(SyncedBy::IamEksUserMapper),
                     },
                 ]),
                 expected_output: Ok(r"
@@ -420,7 +483,13 @@ mod tests {
   username: user_2
   groups:
     - group_2
-    - group_3"
+    - group_3
+- userarn: arn:test:user_3
+  username: user_3
+  groups:
+    - group_3
+    - group_4
+  syncedBy: iam-eks-user-mapper"
                     .trim_start()
                     .to_string()),
 
@@ -434,6 +503,7 @@ mod tests {
                         KubernetesGroupName::new("group_1"),
                         KubernetesGroupName::new("group_2"),
                     ]),
+                    synced_by: None,
                 }]),
                 expected_output: Ok(r"
 - userarn: arn:test:user_1
@@ -447,9 +517,31 @@ mod tests {
                 _description: "case 2 - one user",
             },
             TestCase {
+                input: HashSet::from_iter(vec![KubernetesUser {
+                    iam_user_name: IamUserName::new("user_1"),
+                    iam_arn: IamArn::new("arn:test:user_1"),
+                    roles: HashSet::from_iter(vec![
+                        KubernetesGroupName::new("group_1"),
+                        KubernetesGroupName::new("group_2"),
+                    ]),
+                    synced_by: Some(SyncedBy::Unknown),
+                }]),
+                expected_output: Ok(r"
+- userarn: arn:test:user_1
+  username: user_1
+  groups:
+    - group_1
+    - group_2
+  syncedBy: a-tool-we-do-not-know"
+                    .trim_start()
+                    .to_string()),
+
+                _description: "case 3 - one user synced by unknown provider",
+            },
+            TestCase {
                 input: HashSet::from_iter(vec![]),
                 expected_output: Ok(r"".to_string()),
-                _description: "case 3 - no users",
+                _description: "case 4 - no users",
             },
         ];
 
@@ -469,6 +561,118 @@ mod tests {
 
                     let result_yaml_string = result.unwrap_or_default();
                     let parsed_yaml_result: Result<HashSet<MapUserConfig>, _> =
+                        serde_yaml::from_str(&result_yaml_string);
+                    assert!(parsed_yaml_result.is_ok());
+
+                    assert_eq!(
+                        parsed_yaml_expected_result.unwrap_or_default(),
+                        parsed_yaml_result.unwrap_or_default()
+                    );
+                }
+                Err(e) => {
+                    assert!(result.is_err());
+                    assert_eq!(e, result.unwrap_err());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn generate_roles_config_map_yaml_string_test() {
+        // setup:
+        struct TestCase<'a> {
+            input: HashSet<KubernetesRole>,
+            expected_output: Result<String, KubernetesError>,
+            _description: &'a str,
+        }
+
+        let test_cases = vec![
+            TestCase {
+                input: HashSet::from_iter(vec![KubernetesRole {
+                    role_name: Some("role_1".to_string()),
+                    user_name: None,
+                    iam_role_arn: IamArn::new("arn:test:role_1"),
+                    groups: HashSet::from_iter(vec![
+                        KubernetesGroupName::new("group_2"),
+                        KubernetesGroupName::new("group_3"),
+                    ]),
+                    synced_by: None,
+                }]),
+                expected_output: Ok(r"
+- rolearn: arn:test:role_1
+  rolename: role_1
+  groups:
+    - group_2
+    - group_3"
+                    .trim_start()
+                    .to_string()),
+
+                _description: "case 1 - nominal case",
+            },
+            TestCase {
+                input: HashSet::from_iter(vec![KubernetesRole {
+                    role_name: Some("role_1".to_string()),
+                    user_name: None,
+                    iam_role_arn: IamArn::new("arn:test:role_1"),
+                    groups: HashSet::from_iter(vec![
+                        KubernetesGroupName::new("group_2"),
+                        KubernetesGroupName::new("group_3"),
+                    ]),
+                    synced_by: Some(SyncedBy::IamEksUserMapper),
+                }]),
+                expected_output: Ok(r"
+- rolearn: arn:test:role_1
+  rolename: role_1
+  groups:
+    - group_2
+    - group_3
+  syncedBy: iam-eks-user-mapper"
+                    .trim_start()
+                    .to_string()),
+
+                _description: "case 2 - role synced by iam-user-mapper",
+            },
+            TestCase {
+                input: HashSet::from_iter(vec![KubernetesRole {
+                    role_name: Some("role_1".to_string()),
+                    user_name: None,
+                    iam_role_arn: IamArn::new("arn:test:role_1"),
+                    groups: HashSet::from_iter(vec![
+                        KubernetesGroupName::new("group_2"),
+                        KubernetesGroupName::new("group_3"),
+                    ]),
+                    synced_by: Some(SyncedBy::Unknown),
+                }]),
+                expected_output: Ok(r"
+- rolearn: arn:test:role_1
+  rolename: role_1
+  groups:
+    - group_2
+    - group_3
+  syncedBy: some-tool-we-do-not-know"
+                    .trim_start()
+                    .to_string()),
+
+                _description: "case 3 - role synced by unknown",
+            },
+        ];
+
+        for tc in test_cases {
+            // execute:
+            let result = KubernetesService::generate_roles_config_map_yaml_string(tc.input);
+
+            // verify:
+            match tc.expected_output {
+                Ok(expected_yaml) => {
+                    assert!(result.is_ok());
+
+                    // YAML serializer is not preserving orders
+                    let parsed_yaml_expected_result: Result<HashSet<MapRoleConfig>, _> =
+                        serde_yaml::from_str(&expected_yaml);
+                    assert!(parsed_yaml_expected_result.is_ok());
+
+                    let result_yaml_string = result.unwrap_or_default();
+                    let parsed_yaml_result: Result<HashSet<MapRoleConfig>, _> =
                         serde_yaml::from_str(&result_yaml_string);
                     assert!(parsed_yaml_result.is_ok());
 
