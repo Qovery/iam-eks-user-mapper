@@ -22,6 +22,7 @@ pub enum ConfigurationError {
     MalformedSSORoleArn,
 }
 
+#[derive(Clone)]
 pub struct Credentials {
     pub region: Region,
     pub service_account_name: String,
@@ -69,25 +70,35 @@ impl FromStr for IamK8sGroup {
     }
 }
 
+#[derive(Clone)]
 pub enum GroupUserSyncConfig {
     Disabled,
     Enabled { iam_k8s_groups: Vec<IamK8sGroup> },
 }
 
+#[derive(Clone)]
 pub enum SSORoleConfig {
     Disabled,
     Enabled { sso_role: KubernetesRole },
 }
+#[derive(Clone)]
+pub enum KarpenterRoleConfig {
+    Disabled,
+    Enabled { karpenter_role: KubernetesRole },
+}
 
+#[derive(Clone)]
 pub struct Config {
     pub credentials: Credentials,
     pub refresh_interval: Duration,
     pub group_user_sync_config: GroupUserSyncConfig,
     pub sso_role_config: SSORoleConfig,
+    pub karpenter_config: KarpenterRoleConfig,
     pub verbose: bool,
 }
 
 impl Config {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         credentials: Credentials,
         refresh_interval: Duration,
@@ -95,6 +106,7 @@ impl Config {
         iam_k8s_groups_mapping_raw: Vec<IamK8sGroupMappingsRaw>,
         enable_sso: bool,
         iam_sso_role_arn: String,
+        karpenter_role_arn: Option<String>,
         verbose: bool,
     ) -> Result<Config, ConfigurationError> {
         // group user sync configuration
@@ -147,11 +159,30 @@ impl Config {
             false => SSORoleConfig::Disabled,
         };
 
+        let config = match karpenter_role_arn {
+            Some(x) => {
+                KarpenterRoleConfig::Enabled {
+                    karpenter_role: KubernetesRole::new(
+                        IamArn::new(x.as_str()),
+                        Some("Karpenter".to_string()),
+                        None,
+                        HashSet::from_iter(vec![
+                            KubernetesGroupName::new("system:bootstrappers"),
+                            KubernetesGroupName::new("system:nodes"),
+                        ]),
+                        Some(SyncedBy::IamEksUserMapper), // <- managed by the tool
+                    ),
+                }
+            }
+            None => KarpenterRoleConfig::Disabled,
+        };
+
         Ok(Config {
             credentials,
             refresh_interval,
             group_user_sync_config,
             sso_role_config,
+            karpenter_config: config,
             verbose,
         })
     }
@@ -160,7 +191,9 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use crate::aws::iam::IamGroup;
-    use crate::config::{Config, ConfigurationError, Credentials, IamK8sGroup, SSORoleConfig};
+    use crate::config::{
+        Config, ConfigurationError, Credentials, IamK8sGroup, KarpenterRoleConfig, SSORoleConfig,
+    };
     use crate::kubernetes::{IamArn, KubernetesGroupName};
     use std::str::FromStr;
     use std::sync::Arc;
@@ -267,18 +300,25 @@ mod tests {
                 Vec::with_capacity(0),
                 true,
                 tc.input.to_string(),
+                None,
                 false,
             );
 
             // verify:
             assert!(res.is_ok());
+            let result = res.expect("config cannot be unwrap error");
             assert_eq!(
                 tc.expected.to_string(),
-                match res.expect("config cannot be unwrap error").sso_role_config {
+                match result.clone().sso_role_config {
                     SSORoleConfig::Disabled => panic!("Error!"),
                     SSORoleConfig::Enabled { sso_role } => sso_role.iam_role_arn.to_string(),
                 }
             );
+            assert!(match result.karpenter_config {
+                KarpenterRoleConfig::Disabled => true,
+                #[allow(unused_variables)]
+                KarpenterRoleConfig::Enabled { karpenter_role } => false,
+            })
         }
     }
 
@@ -300,6 +340,7 @@ mod tests {
                 Vec::with_capacity(0),
                 true,
                 tc.to_string(),
+                None,
                 false,
             );
 
@@ -307,5 +348,32 @@ mod tests {
             assert!(res.is_err());
             assert!(matches!(res, Err(ConfigurationError::MalformedSSORoleArn)));
         }
+    }
+
+    #[test]
+    fn iam_karpenter_role_test() {
+        let res = Config::new(
+            Credentials::new(
+                "whatever".to_string(),
+                "whatever".to_string(),
+                "whatever".to_string(),
+            ),
+            Duration::from_secs(60),
+            false,
+            Vec::with_capacity(0),
+            false,
+            "".to_string(),
+            Some("arn:aws:iam::account_id:role/role_id".to_string()),
+            false,
+        );
+
+        // verify:
+        assert!(res.is_ok());
+        let x = match res.unwrap().karpenter_config {
+            KarpenterRoleConfig::Disabled => panic!("Error!"),
+            KarpenterRoleConfig::Enabled { karpenter_role } => karpenter_role.iam_role_arn,
+        };
+
+        assert_eq!(x, IamArn::new("arn:aws:iam::account_id:role/role_id"))
     }
 }

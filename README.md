@@ -15,6 +15,9 @@ At a given interval (default 30s) it executes the following:
 **IF SSO enabled**
 - Add SSO role arn to `aws-auth` configmap in the cluster allowing users allowed to use this SSO role to connect to the cluster via SSO.
 
+**IF Karpenter enabled**
+- Add Karpenter role arn to `aws-auth` configmap in the cluster allowing Karpenter to create nodes in the cluster.
+
 ## Usage
 ```shell
 ./iam-eks-user-mapper \
@@ -25,6 +28,7 @@ At a given interval (default 30s) it executes the following:
     --iam-k8s-groups <IAM_K8S_GROUPS> \
     --enable-sso <ENABLE_SSO> \
     --iam-sso-role-arn <IAM_SSO_ROLE_ARN> \
+    --karpenter-arn <KARPENTER_ARN> \
     --refresh-interval-seconds <REFRESH_INTERVAL_SECONDS> \
     --verbose <VERBOSE>
 ```
@@ -39,6 +43,7 @@ At a given interval (default 30s) it executes the following:
 | `iam_k8s_groups`           | `String`  | `""`    | `false` (`true` if `enable_group_user_sync` == `true`) | IAM groups to be mapped into Kubernetes, syntax is `<IAM_GROUP>-><KUBERNETES_GROUP>,<IAM_GROUP_2>-><KUBERNETES_GROUP_2>` | `Admins->system:masters`, `Admins->system:masters,Devops->system:devops`                                                               |
 | `enable_sso`               | `Boolean` | `false` | `false`                                                | Activate SSO support to connect to the cluster                                                                           | `true`                                                                                                                                 |
 | `iam_sso_role_arn`         | `String`  | `""`    | `false` (`true` if `enable_sso` == `true`)             | IAM SSO role ARN to be used to connect to the cluster                                                                    | `"arn:aws:iam::[AWS_ACCOUNT_ID]:role/aws-reserved/sso.amazonaws.com/[AWS_REGION]/AWSReservedSSO_AdministratorAccess_53b82e109c5e2cac"` |
+| `karpenter_role_arn`       | `String`  | `""`    | `false`               | Enable Karpenter role ARN    | `arn:aws:iam::account_id:role/role_id` |
 | `verbose`                  | `Boolean` | `false` | `false`                                                | Activate verbose mode                                                                                                    | `Admins->system:masters`, `Admins->system:masters,Devops->system:devops`                                                               |
 
 All parameters can be set as environment variables as well:
@@ -51,6 +56,7 @@ ENABLE_GROUP_USER_SYNC=<ENABLE_GROUP_USER_SYNC> \
 IAM_K8S_GROUPS=<IAM_K8S_GROUPS> \
 ENABLE_SSO=<ENABLE_SSO> \
 IAM_SSO_ROLE_ARN=<IAM_SSO_ROLE_ARN> \
+KARPENTER_ARN=<KARPENTER_ARN> \
 REFRESH_INTERVAL_SECONDS=<REFRESH_INTERVAL_SECONDS> \
 VERBOSE=<VERBOSE> \
 ./iam-eks-user-mapper
@@ -66,6 +72,10 @@ groupUsersSync:
 sso:
   enabled: <ENABLE_SSO>
   iamSSORoleArn: <IAM_SSO_ROLE_ARN> # "arn:aws:iam::[AWS_ACCOUNT_ID]:role/aws-reserved/sso.amazonaws.com/[AWS_REGION]/AWSReservedSSO_AdministratorAccess_53b82e109c5e2cac"
+
+karpenter:
+  enabled: false
+  iamKarpenterRoleArn: <KARPENTER_ROLE_ARN> # "arn:aws:iam::[AWS_ACCOUNT_ID]:role/[ROLE_NAME]"
 
 refreshIntervalSeconds: <REFRESH_INTERVAL_SECONDS>
 
