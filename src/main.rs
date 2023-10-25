@@ -49,6 +49,9 @@ struct Args {
     /// IAM SSO role arn
     #[clap(long, env, value_delimiter = ',', required = false)]
     pub iam_sso_role_arn: String,
+    /// Enable Karpenter by defining its role ARN
+    #[clap(long, env, required = false)]
+    pub karpenter_role_arn: Option<String>,
     /// Activate verbose mode
     #[clap(short = 'v', long, env, default_value_t = false)]
     pub verbose: bool,
@@ -97,6 +100,7 @@ async fn sync_iam_eks_users_and_roles(
     kubernetes_client: &KubernetesService,
     groups_mappings: Option<&GroupsMappings>,
     sso_role: Option<KubernetesRole>,
+    karpenter_config: Option<KubernetesRole>,
 ) -> Result<(), errors::Error> {
     // create kubernetes users to be added
     let kubernetes_users = match groups_mappings {
@@ -123,7 +127,13 @@ async fn sync_iam_eks_users_and_roles(
 
     // create new users & roles config map
     kubernetes_client
-        .update_user_and_role_config_map("kube-system", "aws-auth", kubernetes_users, sso_role)
+        .update_user_and_role_config_map(
+            "kube-system",
+            "aws-auth",
+            kubernetes_users,
+            sso_role,
+            karpenter_config,
+        )
         .await
         .map_err(|e| Error::Kubernetes {
             underlying_error: e,
@@ -165,6 +175,7 @@ async fn main() -> Result<(), errors::Error> {
         args.iam_k8s_groups,
         args.enable_sso,
         args.iam_sso_role_arn,
+        args.karpenter_role_arn,
         args.verbose,
     )
     .map_err(|e| Error::Configuration {
@@ -207,6 +218,11 @@ async fn main() -> Result<(), errors::Error> {
             SSORoleConfig::Enabled { sso_role } => Some(sso_role),
         };
 
+        let karpenter_config = match config.karpenter_config {
+            config::KarpenterRoleConfig::Disabled => None,
+            config::KarpenterRoleConfig::Enabled { karpenter_role } => Some(karpenter_role),
+        };
+
         loop {
             tick_interval.tick().await;
             info!("Syncing IAM EKS users & roles");
@@ -215,6 +231,7 @@ async fn main() -> Result<(), errors::Error> {
                 &kubernetes_client,
                 groups_mappings.as_ref(),
                 sso_role.clone(),
+                karpenter_config.clone(),
             )
             .await
             {

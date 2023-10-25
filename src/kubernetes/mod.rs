@@ -349,6 +349,7 @@ impl KubernetesService {
         config_map_name: &str,
         kubernetes_users_to_be_added: Option<HashSet<KubernetesUser>>,
         kubernetes_sso_role_to_be_added: Option<KubernetesRole>,
+        karpenter_role_to_be_added: Option<KubernetesRole>,
     ) -> Result<(), KubernetesError> {
         let config_maps_api: Api<ConfigMap> =
             Api::namespaced(self.client.clone(), config_map_namespace); // TODO(benjaminch): avoid clone()
@@ -414,9 +415,15 @@ impl KubernetesService {
             },
         )
         .new_synced_users(kubernetes_users_to_be_added.unwrap_or_default())
-        .new_synced_roles(match kubernetes_sso_role_to_be_added {
-            Some(sso_role) => HashSet::from_iter(vec![sso_role]),
-            None => HashSet::with_capacity(0),
+        .new_synced_roles({
+            let mut roles = Vec::new();
+            if let Some(sso_role) = kubernetes_sso_role_to_be_added {
+                roles.append(&mut vec![sso_role])
+            };
+            if let Some(karpenter_role) = karpenter_role_to_be_added {
+                roles.append(&mut vec![karpenter_role])
+            };
+            HashSet::from_iter(roles)
         })
         .build();
 
