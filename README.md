@@ -28,7 +28,7 @@ At a given interval (default 30s) it executes the following:
     --iam-k8s-groups <IAM_K8S_GROUPS> \
     --enable-sso <ENABLE_SSO> \
     --iam-sso-role-arn <IAM_SSO_ROLE_ARN> \
-    --karpenter-arn <KARPENTER_ARN> \
+    --karpenter-arn <KARPENTER_ROLE_ARN> \
     --refresh-interval-seconds <REFRESH_INTERVAL_SECONDS> \
     --verbose <VERBOSE>
 ```
@@ -56,7 +56,7 @@ ENABLE_GROUP_USER_SYNC=<ENABLE_GROUP_USER_SYNC> \
 IAM_K8S_GROUPS=<IAM_K8S_GROUPS> \
 ENABLE_SSO=<ENABLE_SSO> \
 IAM_SSO_ROLE_ARN=<IAM_SSO_ROLE_ARN> \
-KARPENTER_ARN=<KARPENTER_ARN> \
+KARPENTER_ROLE_ARN=<KARPENTER_ROLE_ARN> \
 REFRESH_INTERVAL_SECONDS=<REFRESH_INTERVAL_SECONDS> \
 VERBOSE=<VERBOSE> \
 ./iam-eks-user-mapper
