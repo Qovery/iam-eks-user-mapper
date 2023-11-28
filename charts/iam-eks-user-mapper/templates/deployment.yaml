@@ -28,8 +28,6 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           env:
-            - name: "IAM_SSO_ROLE_ARN"
-              value: "{{ .Values.iamSSORoleArn }}"
             - name: "REFRESH_INTERVAL_SECONDS"
               value: "{{ .Values.refreshIntervalSeconds }}"
             - name: "AWS_STS_REGIONAL_ENDPOINTS"
