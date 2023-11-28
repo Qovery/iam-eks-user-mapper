@@ -1,6 +1,7 @@
 name: helm-chart
 on:
   push:
+    branches: ['main']
     paths:
       - charts/**
 
