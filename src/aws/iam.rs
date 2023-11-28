@@ -118,7 +118,7 @@ impl IamService {
             .await
         {
             Ok(group) => {
-                let group_users = group.users().unwrap_or_default();
+                let group_users = group.users();
 
                 if group_users.is_empty() {
                     return Err(IamError::NoUsersFoundInIamGroup {
@@ -128,8 +128,8 @@ impl IamService {
 
                 for user in group_users {
                     let mut aws_user = AwsUser {
-                        arn: Arn::new(user.arn().unwrap_or_default()),
-                        user_name: User::new(user.user_name().unwrap_or_default()),
+                        arn: Arn::new(user.arn()),
+                        user_name: User::new(user.user_name()),
                         groups: HashSet::from_iter(vec![iam_group.clone()]),
                     };
 

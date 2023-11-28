@@ -1,6 +1,6 @@
 use crate::aws::iam::IamError;
 use aws_config::meta::region::RegionProviderChain;
-use aws_config::SdkConfig;
+use aws_config::{BehaviorVersion, SdkConfig};
 use aws_sdk_iam::config::Region;
 use aws_sdk_sts::Client;
 use thiserror::Error;
@@ -44,15 +44,16 @@ impl AwsSdkConfig {
             .await
             .ok_or_else(|| AwsError::CannotGetAwsRegion)?;
 
-        let config = aws_config::from_env().region(region_provider).load().await;
+        let config = aws_config::defaults(BehaviorVersion::latest()).region(region_provider).load().await;
 
         match config.credentials_provider() {
-            Some(credential) => {
+            Some(_credential) => {
                 let provider = aws_config::sts::AssumeRoleProvider::builder(role_arn)
                     .session_name(String::from("iam-eks-user-mapper-assume-role-session"))
                     .region(region)
-                    .build(credential.clone());
-                let local_config = aws_config::from_env()
+                    .build()
+                .await;
+                let local_config = aws_config::defaults(BehaviorVersion::latest())
                     .credentials_provider(provider)
                     .load()
                     .await;
