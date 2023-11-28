@@ -44,7 +44,10 @@ impl AwsSdkConfig {
             .await
             .ok_or_else(|| AwsError::CannotGetAwsRegion)?;
 
-        let config = aws_config::defaults(BehaviorVersion::latest()).region(region_provider).load().await;
+        let config = aws_config::defaults(BehaviorVersion::latest())
+            .region(region_provider)
+            .load()
+            .await;
 
         match config.credentials_provider() {
             Some(_credential) => {
@@ -52,7 +55,7 @@ impl AwsSdkConfig {
                     .session_name(String::from("iam-eks-user-mapper-assume-role-session"))
                     .region(region)
                     .build()
-                .await;
+                    .await;
                 let local_config = aws_config::defaults(BehaviorVersion::latest())
                     .credentials_provider(provider)
                     .load()
