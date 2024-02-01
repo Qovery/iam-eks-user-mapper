@@ -164,8 +164,8 @@ impl Config {
                 KarpenterRoleConfig::Enabled {
                     karpenter_role: KubernetesRole::new(
                         IamArn::new(x.as_str()),
-                        Some("Karpenter".to_string()),
                         None,
+                        Some("system:node:{{EC2PrivateDNSName}}".to_string()),
                         HashSet::from_iter(vec![
                             KubernetesGroupName::new("system:bootstrappers"),
                             KubernetesGroupName::new("system:nodes"),
