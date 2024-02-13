@@ -47,7 +47,7 @@ struct Args {
     #[clap(long, env, required = true, default_value_t = false)]
     pub enable_sso: bool,
     /// IAM SSO role arn
-    #[clap(long, env, value_delimiter = ',', required = false)]
+    #[clap(long, env, value_delimiter = ',', required = false, default_value_t =  String::from(""))]
     pub iam_sso_role_arn: String,
     /// Enable Karpenter by defining its role ARN
     #[clap(long, env, required = false)]
@@ -182,15 +182,11 @@ async fn main() -> Result<(), errors::Error> {
         underlying_error: e,
     })?;
 
-    let aws_config = AwsSdkConfig::new(
-        config.credentials.region,
-        config.credentials.role_arn.as_str(),
-        config.verbose,
-    )
-    .await
-    .map_err(|e| Error::Aws {
-        underlying_error: e,
-    })?;
+    let aws_config = AwsSdkConfig::new(config.credentials.region, config.verbose)
+        .await
+        .map_err(|e| Error::Aws {
+            underlying_error: e,
+        })?;
 
     let iam_client = IamService::new(&aws_config, config.verbose);
 

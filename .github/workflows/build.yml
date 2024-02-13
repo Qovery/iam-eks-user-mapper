@@ -131,7 +131,7 @@ jobs:
     - name: install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: 1.72.1  # MSRV
+        toolchain: 1.74.0  # MSRV
         components: clippy
     - uses: Swatinem/rust-cache@v2
     - name: install SARIF tools
