@@ -38,8 +38,10 @@ spec:
               value: "{{ .Values.groupUsersSync.iamK8sGroups }}"
             - name: "ENABLE_SSO"
               value: "{{ .Values.sso.enabled }}"
+            {{ if .Values.sso.enabled }}
             - name: "IAM_SSO_ROLE_ARN"
               value: "{{ .Values.sso.iamSSORoleArn }}"
+            {{ end }}
             {{ if .Values.karpenter.enabled }}
             - name: "KARPENTER_ROLE_ARN"
               value: "{{ .Values.karpenter.iamKarpenterRoleArn }}"

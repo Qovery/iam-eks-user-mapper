@@ -47,8 +47,8 @@ struct Args {
     #[clap(long, env, required = true, default_value_t = false)]
     pub enable_sso: bool,
     /// IAM SSO role arn
-    #[clap(long, env, value_delimiter = ',', required = false, default_value_t =  String::from(""))]
-    pub iam_sso_role_arn: String,
+    #[clap(long, env, value_delimiter = ',', required = false)]
+    pub iam_sso_role_arn: Option<String>,
     /// Enable Karpenter by defining its role ARN
     #[clap(long, env, required = false)]
     pub karpenter_role_arn: Option<String>,
