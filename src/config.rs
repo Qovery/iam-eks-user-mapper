@@ -105,7 +105,7 @@ impl Config {
         enable_group_sync: bool,
         iam_k8s_groups_mapping_raw: Vec<IamK8sGroupMappingsRaw>,
         enable_sso: bool,
-        iam_sso_role_arn: String,
+        iam_sso_role_arn: Option<String>,
         karpenter_role_arn: Option<String>,
         verbose: bool,
     ) -> Result<Config, ConfigurationError> {
@@ -127,9 +127,10 @@ impl Config {
         // sso configuration
         let sso_role_config = match enable_sso {
             true => {
-                if iam_sso_role_arn.is_empty() {
-                    return Err(ConfigurationError::EmptySSORoleArn);
-                }
+                let iam_sso_role_arn = match iam_sso_role_arn {
+                    Some(iam_sso_role_arn) => iam_sso_role_arn,
+                    None => return Err(ConfigurationError::EmptySSORoleArn),
+                };
 
                 // Sanitize IAM ARN for the role, removing the part before the role name
                 // E.g: arn:aws:iam::8432375466567:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_53b82e109c5e2cac
@@ -299,7 +300,7 @@ mod tests {
                 false,
                 Vec::with_capacity(0),
                 true,
-                tc.input.to_string(),
+                Some(tc.input.to_string()),
                 None,
                 false,
             );
@@ -339,7 +340,7 @@ mod tests {
                 false,
                 Vec::with_capacity(0),
                 true,
-                tc.to_string(),
+                Some(tc.to_string()),
                 None,
                 false,
             );
@@ -362,7 +363,7 @@ mod tests {
             false,
             Vec::with_capacity(0),
             false,
-            "".to_string(),
+            None,
             Some("arn:aws:iam::account_id:role/role_id".to_string()),
             false,
         );
