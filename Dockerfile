@@ -1,4 +1,4 @@
-FROM public.ecr.aws/r3m4q3r9/qovery-ci:rust-1.70-2023-06-21T09-03-38 as build
+FROM public.ecr.aws/r3m4q3r9/qovery-ci:rust-1.76.0-2024-03-04T13-33-27 as build
 
 RUN apt-get update && \
   apt-get install -y librust-openssl-sys-dev && \
@@ -9,7 +9,7 @@ WORKDIR /build
 ADD . /build
 RUN cargo build --release
 
-FROM debian:12.0-slim as run
+FROM debian:12-slim as run
 
 ENV RUST_LOG=info
 RUN apt-get update && apt-get -y dist-upgrade && apt-get install -y ca-certificates && apt-get clean
