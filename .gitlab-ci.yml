@@ -1,4 +1,4 @@
-image: public.ecr.aws/r3m4q3r9/qovery-ci:engine-2023-09-04T08-41-26
+image: public.ecr.aws/r3m4q3r9/qovery-ci:engine-2024-03-29T11-14-26
 
 services:
   - docker:dind
