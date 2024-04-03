@@ -114,6 +114,7 @@ impl IamService {
             .client
             .get_group()
             .group_name(iam_group.to_string())
+            .max_items(1000)
             .send()
             .await
         {
