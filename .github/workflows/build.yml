@@ -1,16 +1,16 @@
 # This GitHub action runs your tests for each pull request and push.
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths-ignore:
-      - 'README.md'
-      - '.gitignore'
+      - "README.md"
+      - ".gitignore"
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ main ]
+    branches: [main]
     paths-ignore:
-      - 'README.md'
-      - '.gitignore'
+      - "README.md"
+      - ".gitignore"
 
 env:
   RUST_BACKTRACE: 1
@@ -20,7 +20,6 @@ env:
 name: build
 
 jobs:
-
   build:
     permissions:
       contents: none
@@ -40,85 +39,85 @@ jobs:
     continue-on-error: ${{ matrix.rust != 'stable' }}
     runs-on: ${{ matrix.os }}
     steps:
-    - name: checkout repository
-      uses: actions/checkout@v3
-    - name: install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: ${{ matrix.rust }}
-    - uses: Swatinem/rust-cache@v2
-    - name: build
-      run: cargo test --no-run --workspace --all-features
-    - name: default features
-      run: cargo test --workspace
-    - name: all features
-      run: cargo test --workspace --all-features
-    - name: no-default features
-      run: cargo test --workspace --no-default-features
+      - name: checkout repository
+        uses: actions/checkout@v3
+      - name: install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+      - uses: Swatinem/rust-cache@v2
+      - name: build
+        run: cargo test --no-run --workspace --all-features
+      - name: default features
+        run: cargo test --workspace
+      - name: all features
+        run: cargo test --workspace --all-features
+      - name: no-default features
+        run: cargo test --workspace --no-default-features
 
   msrv:
-    name: "check MSRV: 1.72.1"
+    name: "check MSRV: 1.77.1"
     runs-on: ubuntu-latest
     steps:
-    - name: checkout repository
-      uses: actions/checkout@v3
-    - name: install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: 1.72.1  # MSRV
-    - uses: Swatinem/rust-cache@v2
-    - name: default features
-      run: cargo check --workspace --all-targets
-    - name: all features
-      run: cargo check --workspace --all-targets --all-features
-    - name: No-default features
-      run: cargo check --workspace --all-targets --no-default-features
+      - name: checkout repository
+        uses: actions/checkout@v3
+      - name: install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.77.1 # MSRV
+      - uses: Swatinem/rust-cache@v2
+      - name: default features
+        run: cargo check --workspace --all-targets
+      - name: all features
+        run: cargo check --workspace --all-targets --all-features
+      - name: No-default features
+        run: cargo check --workspace --all-targets --no-default-features
 
   lockfile:
     runs-on: ubuntu-latest
     steps:
-    - name: checkout repository
-      uses: actions/checkout@v3
-    - name: install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: stable
-    - uses: Swatinem/rust-cache@v2
-    - name: "Is lockfile updated?"
-      run: cargo fetch --locked
+      - name: checkout repository
+        uses: actions/checkout@v3
+      - name: install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+      - name: "Is lockfile updated?"
+        run: cargo fetch --locked
 
   docs:
     name: docs
     runs-on: ubuntu-latest
     steps:
-    - name: checkout repository
-      uses: actions/checkout@v3
-    - name: install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: stable
-    - uses: Swatinem/rust-cache@v2
-    - name: check documentation
-      env:
-        RUSTDOCFLAGS: -D warnings
-      run: cargo doc --workspace --all-features --no-deps --document-private-items
+      - name: checkout repository
+        uses: actions/checkout@v3
+      - name: install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+      - name: check documentation
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --workspace --all-features --no-deps --document-private-items
 
   rustfmt:
     name: rustfmt
     runs-on: ubuntu-latest
     steps:
-    - name: checkout repository
-      uses: actions/checkout@v3
-    - name: install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        # Not MSRV because its harder to jump between versions and people are
-        # more likely to have stable
-        toolchain: stable
-        components: rustfmt
-    - uses: Swatinem/rust-cache@v2
-    - name: check formatting
-      run: cargo fmt --all -- --check
+      - name: checkout repository
+        uses: actions/checkout@v3
+      - name: install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Not MSRV because its harder to jump between versions and people are
+          # more likely to have stable
+          toolchain: stable
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: check formatting
+        run: cargo fmt --all -- --check
 
   clippy:
     name: clippy
@@ -126,29 +125,29 @@ jobs:
     permissions:
       security-events: write # to upload sarif results
     steps:
-    - name: checkout repository
-      uses: actions/checkout@v3
-    - name: install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: 1.74.0  # MSRV
-        components: clippy
-    - uses: Swatinem/rust-cache@v2
-    - name: install SARIF tools
-      run: cargo install clippy-sarif
-    - name: install SARIF tools
-      run: cargo install sarif-fmt
-    - name: check
-      run: >
-        cargo clippy --workspace --all-features --all-targets --message-format=json -- -D warnings --allow deprecated
-        | clippy-sarif
-        | tee clippy-results.sarif
-        | sarif-fmt
-      continue-on-error: true
-    - name: upload
-      uses: github/codeql-action/upload-sarif@v2
-      with:
-        sarif_file: clippy-results.sarif
-        wait-for-processing: true
-    - name: report status
-      run: cargo clippy --workspace --all-features --all-targets -- -D warnings --allow deprecated
+      - name: checkout repository
+        uses: actions/checkout@v3
+      - name: install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.74.0 # MSRV
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: install SARIF tools
+        run: cargo install clippy-sarif
+      - name: install SARIF tools
+        run: cargo install sarif-fmt
+      - name: check
+        run: >
+          cargo clippy --workspace --all-features --all-targets --message-format=json -- -D warnings --allow deprecated
+          | clippy-sarif
+          | tee clippy-results.sarif
+          | sarif-fmt
+        continue-on-error: true
+      - name: upload
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: clippy-results.sarif
+          wait-for-processing: true
+      - name: report status
+        run: cargo clippy --workspace --all-features --all-targets -- -D warnings --allow deprecated
