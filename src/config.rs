@@ -26,15 +26,30 @@ pub enum ConfigurationError {
 pub struct Credentials {
     pub region: Region,
     pub _service_account_name: String,
-    pub _role_arn: RoleArn,
+    pub _credentials_mode: CredentialsMode,
+}
+
+#[derive(Clone)]
+pub enum CredentialsMode {
+    RoleBased {
+        _aws_role_arn: RoleArn,
+    },
+    AccessKeyBased {
+        _aws_access_key_id: String,
+        _aws_secret_access_key: String,
+    },
 }
 
 impl Credentials {
-    pub fn new(region: Region, service_account_name: String, role_arn: RoleArn) -> Self {
-        Self {
+    pub fn new(
+        region: Region,
+        service_account_name: String,
+        credentials_mode: CredentialsMode,
+    ) -> Credentials {
+        Credentials {
             region,
             _service_account_name: service_account_name,
-            _role_arn: role_arn,
+            _credentials_mode: credentials_mode,
         }
     }
 }
@@ -193,7 +208,8 @@ impl Config {
 mod tests {
     use crate::aws::iam::IamGroup;
     use crate::config::{
-        Config, ConfigurationError, Credentials, IamK8sGroup, KarpenterRoleConfig, SSORoleConfig,
+        Config, ConfigurationError, Credentials, CredentialsMode, IamK8sGroup, KarpenterRoleConfig,
+        SSORoleConfig,
     };
     use crate::kubernetes::{IamArn, KubernetesGroupName};
     use std::str::FromStr;
@@ -294,7 +310,9 @@ mod tests {
                 Credentials::new(
                     "whatever".to_string(),
                     "whatever".to_string(),
-                    "whatever".to_string(),
+                    CredentialsMode::RoleBased {
+                        _aws_role_arn: "whatever".to_string(),
+                    },
                 ),
                 Duration::from_secs(60),
                 false,
@@ -334,7 +352,9 @@ mod tests {
                 Credentials::new(
                     "whatever".to_string(),
                     "whatever".to_string(),
-                    "whatever".to_string(),
+                    CredentialsMode::RoleBased {
+                        _aws_role_arn: "whatever".to_string(),
+                    },
                 ),
                 Duration::from_secs(60),
                 false,
@@ -357,7 +377,9 @@ mod tests {
             Credentials::new(
                 "whatever".to_string(),
                 "whatever".to_string(),
-                "whatever".to_string(),
+                CredentialsMode::RoleBased {
+                    _aws_role_arn: "whatever".to_string(),
+                },
             ),
             Duration::from_secs(60),
             false,

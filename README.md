@@ -22,7 +22,10 @@ At a given interval (default 30s) it executes the following:
 ```shell
 ./iam-eks-user-mapper \
     --service-account-name <SERVICE_ACCOUNT_NAME> \
+    # either fill aws-role-arn or aws-access-key-id and aws-secret-access-key
     --aws-role-arn <AWS_ROLE_ARN> \
+    --aws-access-key-id <AWS_ACCESS_KEY_ID> \
+    --aws-secret-access-key <AWS_SECRET_ACCESS_KEY> \
     --aws-default-region <AWS_DEFAULT_REGION> \
     --enable-group-user-sync <ENABLE_GROUP_USER_SYNC> \
     --iam-k8s-groups <IAM_K8S_GROUPS> \
@@ -33,24 +36,30 @@ At a given interval (default 30s) it executes the following:
     --verbose <VERBOSE>
 ```
 
-| Parameter                  | Type      | Default | Required                                               | Description                                                                                                              | Example                                                                                                                                |
-|----------------------------|-----------|---------|--------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
-| `service-account-name`     | `String`  |         | `true`                                                 | Service account name to be used                                                                                          | `my-service-account`                                                                                                                   |
-| `aws-role-arn`             | `String`  |         | `true`                                                 | AWS role ARN to be used                                                                                                  | `arn:aws:iam::12345678910:role/my-role`                                                                                                |
-| `aws_default_region`       | `String`  |         | `true`                                                 | AWS default region to be used                                                                                            | `eu-west-3`                                                                                                                            |
-| `refresh_interval_seconds` | `Integer` | `30`    | `false`                                                | Refresh interval in seconds between two user synchronization                                                             | `120`                                                                                                                                  |
-| `enable_group_user_sync`   | `Boolean` | `false` | `false`                                                | Activate User Groups sync                                                                                                | `true`                                                                                                                                 |
-| `iam_k8s_groups`           | `String`  | `""`    | `false` (`true` if `enable_group_user_sync` == `true`) | IAM groups to be mapped into Kubernetes, syntax is `<IAM_GROUP>-><KUBERNETES_GROUP>,<IAM_GROUP_2>-><KUBERNETES_GROUP_2>` | `Admins->system:masters`, `Admins->system:masters,Devops->system:devops`                                                               |
-| `enable_sso`               | `Boolean` | `false` | `false`                                                | Activate SSO support to connect to the cluster                                                                           | `true`                                                                                                                                 |
-| `iam_sso_role_arn`         | `String`  | `""`    | `false` (`true` if `enable_sso` == `true`)             | IAM SSO role ARN to be used to connect to the cluster                                                                    | `"arn:aws:iam::[AWS_ACCOUNT_ID]:role/aws-reserved/sso.amazonaws.com/[AWS_REGION]/AWSReservedSSO_AdministratorAccess_53b82e109c5e2cac"` |
-| `karpenter_role_arn`       | `String`  | `""`    | `false`               | Enable Karpenter role ARN    | `arn:aws:iam::account_id:role/role_id` |
-| `verbose`                  | `Boolean` | `false` | `false`                                                | Activate verbose mode                                                                                                    | `Admins->system:masters`, `Admins->system:masters,Devops->system:devops`                                                               |
+| Parameter                  | Type      | Default | Required                                                                | Description                                                                                                              | Example                                                                                                                                |
+| -------------------------- | --------- | ------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `service-account-name`     | `String`  |         | `true`                                                                  | Service account name to be used                                                                                          | `my-service-account`                                                                                                                   |
+| `aws-role-arn`             | `String`  |         | `true` if aws_access_key_id and aws_secret_access_key are not specified | AWS role ARN to be used                                                                                                  | `arn:aws:iam::12345678910:role/my-role`                                                                                                |
+| `aws_access_key_id`        | `String`  |         | `true` if aws-role-arn is not specified                                 | AWS Access Key ID to be used                                                                                             | `EXAMPLEACCESSKEYID`                                                                                                                   |
+| `aws_secret_access_key`    | `String`  |         | `true` if aws-role-arn is not specified                                | AWS Secret Access Key to be used                                                                                         | `EXAMPLESECRETACCESSKEY`                                                                                                               |
+| `aws_default_region`       | `String`  |         | `true`                                                                  | AWS default region to be used                                                                                            | `eu-west-3`                                                                                                                            |
+| `refresh_interval_seconds` | `Integer` | `30`    | `false`                                                                 | Refresh interval in seconds between two user synchronization                                                             | `120`                                                                                                                                  |
+| `enable_group_user_sync`   | `Boolean` | `false` | `false`                                                                 | Activate User Groups sync                                                                                                | `true`                                                                                                                                 |
+| `iam_k8s_groups`           | `String`  | `""`    | `false` (`true` if `enable_group_user_sync` == `true`)                  | IAM groups to be mapped into Kubernetes, syntax is `<IAM_GROUP>-><KUBERNETES_GROUP>,<IAM_GROUP_2>-><KUBERNETES_GROUP_2>` | `Admins->system:masters`, `Admins->system:masters,Devops->system:devops`                                                               |
+| `enable_sso`               | `Boolean` | `false` | `false`                                                                 | Activate SSO support to connect to the cluster                                                                           | `true`                                                                                                                                 |
+| `iam_sso_role_arn`         | `String`  | `""`    | `false` (`true` if `enable_sso` == `true`)                              | IAM SSO role ARN to be used to connect to the cluster                                                                    | `"arn:aws:iam::[AWS_ACCOUNT_ID]:role/aws-reserved/sso.amazonaws.com/[AWS_REGION]/AWSReservedSSO_AdministratorAccess_53b82e109c5e2cac"` |
+| `karpenter_role_arn`       | `String`  | `""`    | `false`                                                                 | Enable Karpenter role ARN                                                                                                | `arn:aws:iam::account_id:role/role_id`                                                                                                 |
+| `verbose`                  | `Boolean` | `false` | `false`                                                                 | Activate verbose mode                                                                                                    | `Admins->system:masters`, `Admins->system:masters,Devops->system:devops`                                                               |
+
+**Note:** Either `aws_role_arn` or `aws_access_key_id` and `aws_secret_access_key` must be provided. Both cannot be provided at the same time.
 
 All parameters can be set as environment variables as well:
 
 ```shell
 SERVICE_ACCOUNT_NAME=<SERVICE_ACCOUNT_NAME> \
 AWS_ROLE_ARN=<AWS_ROLE_ARN> \
+AWS_ACCESS_KEY_ID=<AWS_ACCESS_KEY_ID> \
+AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY> \
 AWS_DEFAULT_REGION=<AWS_DEFAULT_REGION> \
 ENABLE_GROUP_USER_SYNC=<ENABLE_GROUP_USER_SYNC> \
 IAM_K8S_GROUPS=<IAM_K8S_GROUPS> \
@@ -81,7 +90,13 @@ refreshIntervalSeconds: <REFRESH_INTERVAL_SECONDS>
 
 aws:
   defaultRegion: <AWS_DEFAULT_REGION>
+  # either fill roleArn or accessKeyId and secretAccessKey or existingSecretName
   roleArn: <AWS_ROLE_ARN>
+  # if you want to use an existing secret, set the name here
+  # it must contain AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+  existingSecretName: <AWS_SECRET_NAME>
+  accessKeyId: <AWS_ACCESS_KEY_ID>
+  secretAccessKey: <AWS_SECRET_ACCESS_KEY>
 
 # Repository for the image is there
 # https://github.com/Qovery/iam-eks-user-mapper
