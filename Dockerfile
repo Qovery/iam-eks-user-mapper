@@ -1,4 +1,4 @@
-FROM public.ecr.aws/r3m4q3r9/qovery-ci:rust-1.76.0-2024-03-04T13-33-27 as build
+FROM public.ecr.aws/r3m4q3r9/qovery-ci:rust-1.80.1-2024-10-21T15-59-17 as build
 
 RUN apt-get update && \
   apt-get install -y librust-openssl-sys-dev && \

@@ -25,16 +25,16 @@ pub enum ConfigurationError {
 #[derive(Clone)]
 pub struct Credentials {
     pub region: Region,
-    pub service_account_name: String,
-    pub role_arn: RoleArn,
+    pub _service_account_name: String,
+    pub _role_arn: RoleArn,
 }
 
 impl Credentials {
     pub fn new(region: Region, service_account_name: String, role_arn: RoleArn) -> Self {
         Self {
             region,
-            service_account_name,
-            role_arn,
+            _service_account_name: service_account_name,
+            _role_arn: role_arn,
         }
     }
 }
