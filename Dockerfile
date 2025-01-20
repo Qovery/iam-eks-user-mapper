@@ -1,4 +1,4 @@
-FROM public.ecr.aws/r3m4q3r9/qovery-ci:rust-1.80.1-2024-10-21T15-59-17 as build
+FROM public.ecr.aws/r3m4q3r9/qovery-ci:rust-1.83.0-2025-01-03T12-53-59 as build
 
 RUN apt-key del 234654DA9A296436 || true
 RUN curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | gpg --dearmor -o /usr/share/keyrings/kubernetes-archive-keyring.gpg
