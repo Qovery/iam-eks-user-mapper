@@ -4,9 +4,13 @@
 
 refreshIntervalSeconds: 60
 
+adminsUsersArns:
+  enabled: false
+  arns: "" # "arn1,arn2"
+
 groupUsersSync:
   enabled: false
-  iamK8sGroups: "" # "group1,group2"
+  iamK8sGroups: []
 
 aws:
   # if you want to use an existing secret, set the name here

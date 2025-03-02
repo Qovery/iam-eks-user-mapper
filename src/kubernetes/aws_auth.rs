@@ -128,7 +128,7 @@ mod tests {
                 existing_users: HashSet::default(),
                 new_users_to_be_added: HashSet::from_iter(vec![KubernetesUser::new(
                     IamUserName::new("user_1"),
-                    IamArn::new("arn::user_1"),
+                    IamArn::new("arn:::::user_1"),
                     HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_1"),
                         KubernetesGroupName::new("group_2"),
@@ -137,7 +137,7 @@ mod tests {
                 )]),
                 expected_users: HashSet::from_iter(vec![KubernetesUser::new(
                     IamUserName::new("user_1"),
-                    IamArn::new("arn::user_1"),
+                    IamArn::new("arn:::::user_1"),
                     HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_1"),
                         KubernetesGroupName::new("group_2"),
@@ -149,7 +149,7 @@ mod tests {
             TestCase {
                 existing_users: HashSet::from_iter(vec![KubernetesUser::new(
                     IamUserName::new("user_1"),
-                    IamArn::new("arn::user_1"),
+                    IamArn::new("arn:::::user_1"),
                     HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_1"),
                         KubernetesGroupName::new("group_2"),
@@ -159,7 +159,7 @@ mod tests {
                 new_users_to_be_added: HashSet::default(),
                 expected_users: HashSet::from_iter(vec![KubernetesUser::new(
                     IamUserName::new("user_1"),
-                    IamArn::new("arn::user_1"),
+                    IamArn::new("arn:::::user_1"),
                     HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_1"),
                         KubernetesGroupName::new("group_2"),
@@ -171,7 +171,7 @@ mod tests {
             TestCase {
                 existing_users: HashSet::from_iter(vec![KubernetesUser::new(
                     IamUserName::new("user_1"),
-                    IamArn::new("arn::user_1"),
+                    IamArn::new("arn:::::user_1"),
                     HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_1"),
                         KubernetesGroupName::new("group_2"),
@@ -180,7 +180,7 @@ mod tests {
                 )]),
                 new_users_to_be_added: HashSet::from_iter(vec![KubernetesUser::new(
                     IamUserName::new("user_2"),
-                    IamArn::new("arn::user_2"),
+                    IamArn::new("arn:::::user_2"),
                     HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_2"),
                         KubernetesGroupName::new("group_3"),
@@ -190,7 +190,7 @@ mod tests {
                 expected_users: HashSet::from_iter(vec![
                     KubernetesUser::new(
                         IamUserName::new("user_1"),
-                        IamArn::new("arn::user_1"),
+                        IamArn::new("arn:::::user_1"),
                         HashSet::from_iter(vec![
                             KubernetesGroupName::new("group_1"),
                             KubernetesGroupName::new("group_2"),
@@ -199,7 +199,7 @@ mod tests {
                     ),
                     KubernetesUser::new(
                         IamUserName::new("user_2"),
-                        IamArn::new("arn::user_2"),
+                        IamArn::new("arn:::::user_2"),
                         HashSet::from_iter(vec![
                             KubernetesGroupName::new("group_2"),
                             KubernetesGroupName::new("group_3"),
@@ -212,7 +212,7 @@ mod tests {
             TestCase {
                 existing_users: HashSet::from_iter(vec![KubernetesUser::new(
                     IamUserName::new("user_1"),
-                    IamArn::new("arn::user_1"),
+                    IamArn::new("arn:::::user_1"),
                     HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_1"),
                         KubernetesGroupName::new("group_2"),
@@ -221,7 +221,7 @@ mod tests {
                 )]),
                 new_users_to_be_added: HashSet::from_iter(vec![KubernetesUser::new(
                     IamUserName::new("user_1"),
-                    IamArn::new("arn::user_1"),
+                    IamArn::new("arn:::::user_1"),
                     HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_1"),
                         KubernetesGroupName::new("group_2"),
@@ -230,7 +230,7 @@ mod tests {
                 )]),
                 expected_users: HashSet::from_iter(vec![KubernetesUser::new(
                     IamUserName::new("user_1"),
-                    IamArn::new("arn::user_1"),
+                    IamArn::new("arn:::::user_1"),
                     HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_1"),
                         KubernetesGroupName::new("group_2"),
@@ -260,7 +260,7 @@ mod tests {
             HashSet::from_iter(vec![
                 KubernetesUser::new(
                     IamUserName::new("user_1"),
-                    IamArn::new("arn::user_1"),
+                    IamArn::new("arn:::::user_1"),
                     HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_1"),
                         KubernetesGroupName::new("group_2"),
@@ -269,7 +269,7 @@ mod tests {
                 ),
                 KubernetesUser::new(
                     IamUserName::new("user_2"),
-                    IamArn::new("arn::user_2"),
+                    IamArn::new("arn:::::user_2"),
                     HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_2"),
                         KubernetesGroupName::new("group_3"),
@@ -279,7 +279,7 @@ mod tests {
             ]),
             HashSet::from_iter(vec![KubernetesUser::new(
                 IamUserName::new("user_2"),
-                IamArn::new("arn::user_2"),
+                IamArn::new("arn:::::user_2"),
                 HashSet::from_iter(vec![
                     KubernetesGroupName::new("group_2"),
                     KubernetesGroupName::new("group_3"),
@@ -288,7 +288,7 @@ mod tests {
             )]),
             HashSet::from_iter(vec![KubernetesUser::new(
                 IamUserName::new("user_2"),
-                IamArn::new("arn::user_2"),
+                IamArn::new("arn:::::user_2"),
                 HashSet::from_iter(vec![
                     KubernetesGroupName::new("group_2"),
                     KubernetesGroupName::new("group_3"),
@@ -332,7 +332,7 @@ mod tests {
             TestCase {
                 existing_roles: HashSet::default(),
                 new_roles_to_be_added: HashSet::from_iter(vec![KubernetesRole::new(
-                    IamArn::new("arn::role_1"),
+                    IamArn::new("arn:::::role_1"),
                     Some("role_1".to_string()),
                     None,
                     HashSet::from_iter(vec![
@@ -342,7 +342,7 @@ mod tests {
                     Some(SyncedBy::IamEksUserMapper),
                 )]),
                 expected_roles: HashSet::from_iter(vec![KubernetesRole::new(
-                    IamArn::new("arn::role_1"),
+                    IamArn::new("arn:::::role_1"),
                     Some("role_1".to_string()),
                     None,
                     HashSet::from_iter(vec![
@@ -355,7 +355,7 @@ mod tests {
             },
             TestCase {
                 existing_roles: HashSet::from_iter(vec![KubernetesRole::new(
-                    IamArn::new("arn::role_1"),
+                    IamArn::new("arn:::::role_1"),
                     Some("role_1".to_string()),
                     None,
                     HashSet::from_iter(vec![
@@ -366,7 +366,7 @@ mod tests {
                 )]),
                 new_roles_to_be_added: HashSet::default(),
                 expected_roles: HashSet::from_iter(vec![KubernetesRole::new(
-                    IamArn::new("arn::role_1"),
+                    IamArn::new("arn:::::role_1"),
                     Some("role_1".to_string()),
                     None,
                     HashSet::from_iter(vec![
@@ -379,7 +379,7 @@ mod tests {
             },
             TestCase {
                 existing_roles: HashSet::from_iter(vec![KubernetesRole::new(
-                    IamArn::new("arn::role_1"),
+                    IamArn::new("arn:::::role_1"),
                     Some("role_1".to_string()),
                     None,
                     HashSet::from_iter(vec![
@@ -389,7 +389,7 @@ mod tests {
                     None,
                 )]),
                 new_roles_to_be_added: HashSet::from_iter(vec![KubernetesRole::new(
-                    IamArn::new("arn::role_2"),
+                    IamArn::new("arn:::::role_2"),
                     Some("role_2".to_string()),
                     None,
                     HashSet::from_iter(vec![
@@ -400,7 +400,7 @@ mod tests {
                 )]),
                 expected_roles: HashSet::from_iter(vec![
                     KubernetesRole::new(
-                        IamArn::new("arn::role_1"),
+                        IamArn::new("arn:::::role_1"),
                         Some("role_1".to_string()),
                         None,
                         HashSet::from_iter(vec![
@@ -410,7 +410,7 @@ mod tests {
                         None,
                     ),
                     KubernetesRole::new(
-                        IamArn::new("arn::role_2"),
+                        IamArn::new("arn:::::role_2"),
                         Some("role_2".to_string()),
                         None,
                         HashSet::from_iter(vec![
@@ -424,7 +424,7 @@ mod tests {
             },
             TestCase {
                 existing_roles: HashSet::from_iter(vec![KubernetesRole::new(
-                    IamArn::new("arn::role_1"),
+                    IamArn::new("arn:::::role_1"),
                     Some("role_1".to_string()),
                     None,
                     HashSet::from_iter(vec![
@@ -434,7 +434,7 @@ mod tests {
                     None,
                 )]),
                 new_roles_to_be_added: HashSet::from_iter(vec![KubernetesRole::new(
-                    IamArn::new("arn::role_1"),
+                    IamArn::new("arn:::::role_1"),
                     Some("role_1".to_string()),
                     None,
                     HashSet::from_iter(vec![
@@ -445,7 +445,7 @@ mod tests {
                 )]),
                 expected_roles: HashSet::from_iter(vec![
                     KubernetesRole::new(
-                        IamArn::new("arn::role_1"),
+                        IamArn::new("arn:::::role_1"),
                         Some("role_1".to_string()),
                         None,
                         HashSet::from_iter(vec![
@@ -477,7 +477,7 @@ mod tests {
             HashSet::default(),
             HashSet::from_iter(vec![
                 KubernetesRole::new(
-                    IamArn::new("arn::role_1"),
+                    IamArn::new("arn:::::role_1"),
                     Some("role_1".to_string()),
                     None,
                     HashSet::from_iter(vec![
@@ -487,7 +487,7 @@ mod tests {
                     None,
                 ),
                 KubernetesRole::new(
-                    IamArn::new("arn::role_2"),
+                    IamArn::new("arn:::::role_2"),
                     Some("role_2".to_string()),
                     None,
                     HashSet::from_iter(vec![
@@ -498,7 +498,7 @@ mod tests {
                 ),
             ]),
             HashSet::from_iter(vec![KubernetesRole::new(
-                IamArn::new("arn::role_2"),
+                IamArn::new("arn:::::role_2"),
                 Some("role_2".to_string()),
                 None,
                 HashSet::from_iter(vec![
@@ -508,7 +508,7 @@ mod tests {
                 Some(SyncedBy::Unknown),
             )]),
             HashSet::from_iter(vec![KubernetesRole::new(
-                IamArn::new("arn::role_2"),
+                IamArn::new("arn:::::role_2"),
                 Some("role_2".to_string()),
                 None,
                 HashSet::from_iter(vec![

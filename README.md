@@ -1,24 +1,30 @@
 # IAM EKS user mapper
-This tool aims to automatically give selected AWS IAM users access to your Kubernetes cluster. 
+
+This tool aims to automatically give selected AWS IAM users access to your Kubernetes cluster.
 It's based on this [tool](https://github.com/ygrene/iam-eks-user-mapper) which is now archived, its main features were reported and extended (role based auth, and SSO for example).
 
 ## Design overview
+
 ![](doc/images/design-overview-dark.svg)
 
 IAM EKS user mapper is running as a pod in the kubernetes cluster.
 At a given interval (default 30s) it executes the following:
 
 **IF Groups users sync enabled**
+
 1. Get IAM users from IAM groups to be given access to the cluster
 2. Add IAM users from IAM groups `aws-auth` configmap in the cluster giving them access to the cluster
 
 **IF SSO enabled**
+
 - Add SSO role arn to `aws-auth` configmap in the cluster allowing users allowed to use this SSO role to connect to the cluster via SSO.
 
 **IF Karpenter enabled**
+
 - Add Karpenter role arn to `aws-auth` configmap in the cluster allowing Karpenter to create nodes in the cluster.
 
 ## Usage
+
 ```shell
 ./iam-eks-user-mapper \
     --service-account-name <SERVICE_ACCOUNT_NAME> \
@@ -27,6 +33,7 @@ At a given interval (default 30s) it executes the following:
     --aws-access-key-id <AWS_ACCESS_KEY_ID> \
     --aws-secret-access-key <AWS_SECRET_ACCESS_KEY> \
     --aws-default-region <AWS_DEFAULT_REGION> \
+    --admins-users-arns <ADMINS_USERS_ARNS> \
     --enable-group-user-sync <ENABLE_GROUP_USER_SYNC> \
     --iam-k8s-groups <IAM_K8S_GROUPS> \
     --enable-sso <ENABLE_SSO> \
@@ -41,10 +48,11 @@ At a given interval (default 30s) it executes the following:
 | `service-account-name`     | `String`  |         | `true`                                                                  | Service account name to be used                                                                                          | `my-service-account`                                                                                                                   |
 | `aws-role-arn`             | `String`  |         | `true` if aws_access_key_id and aws_secret_access_key are not specified | AWS role ARN to be used                                                                                                  | `arn:aws:iam::12345678910:role/my-role`                                                                                                |
 | `aws_access_key_id`        | `String`  |         | `true` if aws-role-arn is not specified                                 | AWS Access Key ID to be used                                                                                             | `EXAMPLEACCESSKEYID`                                                                                                                   |
-| `aws_secret_access_key`    | `String`  |         | `true` if aws-role-arn is not specified                                | AWS Secret Access Key to be used                                                                                         | `EXAMPLESECRETACCESSKEY`                                                                                                               |
+| `aws_secret_access_key`    | `String`  |         | `true` if aws-role-arn is not specified                                 | AWS Secret Access Key to be used                                                                                         | `EXAMPLESECRETACCESSKEY`                                                                                                               |
 | `aws_default_region`       | `String`  |         | `true`                                                                  | AWS default region to be used                                                                                            | `eu-west-3`                                                                                                                            |
 | `refresh_interval_seconds` | `Integer` | `30`    | `false`                                                                 | Refresh interval in seconds between two user synchronization                                                             | `120`                                                                                                                                  |
 | `enable_group_user_sync`   | `Boolean` | `false` | `false`                                                                 | Activate User Groups sync                                                                                                | `true`                                                                                                                                 |
+| `admins_users_arns`        | `String`  | `""`    | `false`                                                                 | IAM users to be mapped into Kubernetes `system:masters`, syntax is `<IAM_USER_ARN>,<IAM_USER_ARN_2>`                     | `arn:aws:iam::123456789012:user/JohnDoe,arn:aws:iam::123456789012:user/JohnDoe2`                                                       |
 | `iam_k8s_groups`           | `String`  | `""`    | `false` (`true` if `enable_group_user_sync` == `true`)                  | IAM groups to be mapped into Kubernetes, syntax is `<IAM_GROUP>-><KUBERNETES_GROUP>,<IAM_GROUP_2>-><KUBERNETES_GROUP_2>` | `Admins->system:masters`, `Admins->system:masters,Devops->system:devops`                                                               |
 | `enable_sso`               | `Boolean` | `false` | `false`                                                                 | Activate SSO support to connect to the cluster                                                                           | `true`                                                                                                                                 |
 | `iam_sso_role_arn`         | `String`  | `""`    | `false` (`true` if `enable_sso` == `true`)                              | IAM SSO role ARN to be used to connect to the cluster                                                                    | `"arn:aws:iam::[AWS_ACCOUNT_ID]:role/aws-reserved/sso.amazonaws.com/[AWS_REGION]/AWSReservedSSO_AdministratorAccess_53b82e109c5e2cac"` |
@@ -61,6 +69,7 @@ AWS_ROLE_ARN=<AWS_ROLE_ARN> \
 AWS_ACCESS_KEY_ID=<AWS_ACCESS_KEY_ID> \
 AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY> \
 AWS_DEFAULT_REGION=<AWS_DEFAULT_REGION> \
+ADMINS_USERS_ARNS=<ADMINS_IAM_USERS> \
 ENABLE_GROUP_USER_SYNC=<ENABLE_GROUP_USER_SYNC> \
 IAM_K8S_GROUPS=<IAM_K8S_GROUPS> \
 ENABLE_SSO=<ENABLE_SSO> \
@@ -72,8 +81,14 @@ VERBOSE=<VERBOSE> \
 ```
 
 ### Helm
+
 Giving a `iam-eks-user-mapper.yaml` file with the following content:
+
 ```yaml
+adminsUsersArns:
+  enabled: <ENABLE_ADMINS_USERS_SYNC>
+  arns: [] # ["arn:aws:iam::123456789012:user/JohnDoe"]
+
 groupUsersSync:
   enabled: <ENABLE_GROUP_USER_SYNC>
   iamK8sGroups: <IAM_K8S_GROUPS> # "group1,group2"
@@ -127,15 +142,16 @@ helm upgrade \
     iam-eks-user-mapper ./charts/iam-eks-user-mapper"
 ```
 
-
 ### Cargo
-``` shell
+
+```shell
 git clone https://github.com/Qovery/iam-eks-user-mapper.git && cd $_
 
 cargo run -- \
     --service-account-name <SERVICE_ACCOUNT_NAME> \
     --aws-role-arn <AWS_ROLE_ARN> \
     --aws-default-region <AWS_DEFAULT_REGION> \
+    --admins-iam-users <ADMINS_IAM_USERS> \
     --enable-group-user-sync <ENABLE_GROUP_USER_SYNC> \
     --iam-k8s-groups <IAM_K8S_GROUPS> \
     --enable-sso <ENABLE_SSO> \
@@ -145,6 +161,7 @@ cargo run -- \
 ```
 
 ### Docker
+
 ```shell
 docker run ghcr.io/qovery/iam-eks-user-mapper:main \
     -e IAM_K8S_GROUPS="<IAM_K8S_GROUPS>" \
@@ -159,24 +176,27 @@ docker run ghcr.io/qovery/iam-eks-user-mapper:main \
 ```
 
 ## AWS setup
+
 ### Setup a group to allow group sync
+
 Allowing to sync IAM users from an IAM group giving IAM users access to the cluster.
 
 First step to allow IAM user groups sync is to create a group to sync IAM side.
 (Steps below are taken from [Qovery's official doc to setup an AWS cluster](https://hub.qovery.com/docs/using-qovery/configuration/cloud-service-provider/amazon-web-services/), it requires a dedicated group to run.)
 
 1. Go to IAM AWS console
-![](doc/images/group-sync-configuration/go-to-aws-console-iam.png)
+   ![](doc/images/group-sync-configuration/go-to-aws-console-iam.png)
 
 2. Create a new group **without permissions** (`Admins` in our example)
-![](doc/images/group-sync-configuration/create-iam-group.jpg)
-![](doc/images/group-sync-configuration/create-iam-group-2.png)
-![](doc/images/group-sync-configuration/create-iam-group-3.png)
+   ![](doc/images/group-sync-configuration/create-iam-group.jpg)
+   ![](doc/images/group-sync-configuration/create-iam-group-2.png)
+   ![](doc/images/group-sync-configuration/create-iam-group-3.png)
 
 3. Add / create users within this `Admins` group
-![](doc/images/group-sync-configuration/add-user-to-admin-group.png)
+   ![](doc/images/group-sync-configuration/add-user-to-admin-group.png)
 
 4. Pass group info `Admins` to be mapped to `system:masters` K8s role to `iam-eks-user-mapper`.
+
 ```shell
 ./iam-eks-user-mapper \
     --service-account-name <SERVICE_ACCOUNT_NAME> \
@@ -187,6 +207,7 @@ First step to allow IAM user groups sync is to create a group to sync IAM side.
 ```
 
 ### Setup SSO to allow SSO connection to the cluster
+
 Allowing SSO connection to your k8s cluster.
 
 You can use [this documentation](https://aws.amazon.com/fr/blogs/containers/a-quick-path-to-amazon-eks-single-sign-on-using-aws-sso/) to setup SSO to your AWS organization.
@@ -194,10 +215,11 @@ You can use [this documentation](https://aws.amazon.com/fr/blogs/containers/a-qu
 Once you've got your CLI configured and an `AWSReservedSSO_` role in IAM:
 
 1. you can copy this role ARN
-![](doc/images/sso-configuration/get-iam-sso-group.png)
-![](doc/images/sso-configuration/get-iam-sso-group-arn.png)
+   ![](doc/images/sso-configuration/get-iam-sso-group.png)
+   ![](doc/images/sso-configuration/get-iam-sso-group-arn.png)
 
 2. and pass it to `iam-eks-user-mapper`.
+
 ```shell
 ./iam-eks-user-mapper \
     --service-account-name <SERVICE_ACCOUNT_NAME> \
@@ -208,7 +230,9 @@ Once you've got your CLI configured and an `AWSReservedSSO_` role in IAM:
 ```
 
 ## Good to know
+
 The tool flags automatically synced entries via a custom field `syncedBy` set to `iam-eks-user-mapper`. This way, if you delete users from synced group and / or deactivate SSO sync or group sync, users / roles will be removed automatically.
+
 ```
 │ - userarn: arn:aws:iam::843237546537:user/pleco
 │   username: pleco
@@ -218,8 +242,10 @@ The tool flags automatically synced entries via a custom field `syncedBy` set to
 ```
 
 ## Want to contribute?
+
 This tool is far from perfect and we will be happy to have people helping making it better.
 You can either:
+
 - open an issue for bugs / enhancements
 - open a PR linked to an issue
 - pick an issue and submit a PR
