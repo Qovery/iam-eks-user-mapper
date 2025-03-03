@@ -67,3 +67,10 @@ Name of the secret
 {{- define "iam-eks-user.aws.secretName" -}}
 {{- default (include "iam-eks-user.fullname" .) .Values.aws.existingSecretName }}
 {{- end }}
+
+{{/*
+Joined users Arns
+*/}}
+{{- define "iam-eks-user.adminsUsersArns" -}}
+{{- join "," .Values.adminsUsersArns.arns }}
+{{- end }}

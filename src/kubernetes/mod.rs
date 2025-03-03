@@ -1,5 +1,6 @@
 mod aws_auth;
 
+use crate::config::ConfigurationError;
 use crate::kubernetes::aws_auth::AwsAuthBuilder;
 use k8s_openapi::api::core::v1::ConfigMap;
 use kube::api::PostParams;
@@ -76,12 +77,46 @@ impl Display for IamRoleName {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct IamArn(String);
 
 impl IamArn {
     pub fn new(iam_arn: &str) -> IamArn {
+        if Self::validate_arn(iam_arn).is_err() {
+            // prefer crash over silent or printed failure at this stage to avoid updating the aws config map with invalid ARNs
+            // From a k8s POV, Crashlooping is better than silently failing (identifiable issue with observability)
+            panic!("Invalid ARN: {}", iam_arn);
+        }
         IamArn(iam_arn.to_string())
+    }
+
+    // https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_identifiers.html
+    pub fn validate_arn(arn: &str) -> Result<(), ConfigurationError> {
+        let arn_split = arn.split(":").collect::<Vec<&str>>();
+        if arn_split.len() != 6 {
+            return Err(ConfigurationError::InvalidArn {
+                iam_arn: Arc::from(format!("invalid user ARN: {}", arn).as_str()),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// ARN example: arn:aws:iam::xxx:user/whatever
+    pub fn get_user(&self) -> Result<IamUserName, ConfigurationError> {
+        if !self.0.contains("user/") {
+            return Err(ConfigurationError::InvalidArn {
+                iam_arn: Arc::from(format!("not a user ARN: {}", self.0).as_str()),
+            });
+        }
+
+        let user = self.0.split("/").collect::<Vec<&str>>();
+        match user.last() {
+            None => Err(ConfigurationError::InvalidArn {
+                iam_arn: Arc::from(format!("invalid user ARN: {}", self.0)),
+            }),
+            Some(x) => Ok(IamUserName(x.to_string())),
+        }
     }
 }
 
@@ -475,7 +510,7 @@ mod tests {
                 input: HashSet::from_iter(vec![
                     KubernetesUser {
                         iam_user_name: IamUserName::new("user_1"),
-                        iam_arn: IamArn::new("arn:test:user_1"),
+                        iam_arn: IamArn::new("arn:test::::user_1"),
                         roles: HashSet::from_iter(vec![
                             KubernetesGroupName::new("group_1"),
                             KubernetesGroupName::new("group_2"),
@@ -484,7 +519,7 @@ mod tests {
                     },
                     KubernetesUser {
                         iam_user_name: IamUserName::new("user_2"),
-                        iam_arn: IamArn::new("arn:test:user_2"),
+                        iam_arn: IamArn::new("arn:test::::user_2"),
                         roles: HashSet::from_iter(vec![
                             KubernetesGroupName::new("group_2"),
                             KubernetesGroupName::new("group_3"),
@@ -493,7 +528,7 @@ mod tests {
                     },
                     KubernetesUser {
                         iam_user_name: IamUserName::new("user_3"),
-                        iam_arn: IamArn::new("arn:test:user_3"),
+                        iam_arn: IamArn::new("arn:test::::user_3"),
                         roles: HashSet::from_iter(vec![
                             KubernetesGroupName::new("group_3"),
                             KubernetesGroupName::new("group_4"),
@@ -502,17 +537,17 @@ mod tests {
                     },
                 ]),
                 expected_output: Ok(r"
-- userarn: arn:test:user_1
+- userarn: arn:test::::user_1
   username: user_1
   groups:
     - group_1
     - group_2
-- userarn: arn:test:user_2
+- userarn: arn:test::::user_2
   username: user_2
   groups:
     - group_2
     - group_3
-- userarn: arn:test:user_3
+- userarn: arn:test::::user_3
   username: user_3
   groups:
     - group_3
@@ -526,7 +561,7 @@ mod tests {
             TestCase {
                 input: HashSet::from_iter(vec![KubernetesUser {
                     iam_user_name: IamUserName::new("user_1"),
-                    iam_arn: IamArn::new("arn:test:user_1"),
+                    iam_arn: IamArn::new("arn:test::::user_1"),
                     roles: HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_1"),
                         KubernetesGroupName::new("group_2"),
@@ -534,7 +569,7 @@ mod tests {
                     synced_by: None,
                 }]),
                 expected_output: Ok(r"
-- userarn: arn:test:user_1
+- userarn: arn:test::::user_1
   username: user_1
   groups:
     - group_1
@@ -547,7 +582,7 @@ mod tests {
             TestCase {
                 input: HashSet::from_iter(vec![KubernetesUser {
                     iam_user_name: IamUserName::new("user_1"),
-                    iam_arn: IamArn::new("arn:test:user_1"),
+                    iam_arn: IamArn::new("arn:test::::user_1"),
                     roles: HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_1"),
                         KubernetesGroupName::new("group_2"),
@@ -555,7 +590,7 @@ mod tests {
                     synced_by: Some(SyncedBy::Unknown),
                 }]),
                 expected_output: Ok(r"
-- userarn: arn:test:user_1
+- userarn: arn:test::::user_1
   username: user_1
   groups:
     - group_1
@@ -619,7 +654,7 @@ mod tests {
                 input: HashSet::from_iter(vec![KubernetesRole {
                     role_name: Some("role_1".to_string()),
                     user_name: None,
-                    iam_role_arn: IamArn::new("arn:test:role_1"),
+                    iam_role_arn: IamArn::new("arn:test::::role_1"),
                     groups: HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_2"),
                         KubernetesGroupName::new("group_3"),
@@ -627,7 +662,7 @@ mod tests {
                     synced_by: None,
                 }]),
                 expected_output: Ok(r"
-- rolearn: arn:test:role_1
+- rolearn: arn:test::::role_1
   rolename: role_1
   groups:
     - group_2
@@ -641,7 +676,7 @@ mod tests {
                 input: HashSet::from_iter(vec![KubernetesRole {
                     role_name: Some("role_1".to_string()),
                     user_name: None,
-                    iam_role_arn: IamArn::new("arn:test:role_1"),
+                    iam_role_arn: IamArn::new("arn:test::::role_1"),
                     groups: HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_2"),
                         KubernetesGroupName::new("group_3"),
@@ -649,7 +684,7 @@ mod tests {
                     synced_by: Some(SyncedBy::IamEksUserMapper),
                 }]),
                 expected_output: Ok(r"
-- rolearn: arn:test:role_1
+- rolearn: arn:test::::role_1
   rolename: role_1
   groups:
     - group_2
@@ -664,7 +699,7 @@ mod tests {
                 input: HashSet::from_iter(vec![KubernetesRole {
                     role_name: Some("role_1".to_string()),
                     user_name: None,
-                    iam_role_arn: IamArn::new("arn:test:role_1"),
+                    iam_role_arn: IamArn::new("arn:test::::role_1"),
                     groups: HashSet::from_iter(vec![
                         KubernetesGroupName::new("group_2"),
                         KubernetesGroupName::new("group_3"),
@@ -672,7 +707,7 @@ mod tests {
                     synced_by: Some(SyncedBy::Unknown),
                 }]),
                 expected_output: Ok(r"
-- rolearn: arn:test:role_1
+- rolearn: arn:test::::role_1
   rolename: role_1
   groups:
     - group_2
@@ -714,6 +749,97 @@ mod tests {
                     assert_eq!(e, result.unwrap_err());
                 }
             }
+        }
+    }
+
+    #[test]
+    fn arn_validation_tests() {
+        let valid_arns = vec![
+            "arn:aws:iam::123456789012:user/JohnDoe",
+            "arn:aws:iam::123456789012:user/division_abc/subdivision_xyz/JaneDoe",
+            "arn:aws:iam::123456789012:group/Developers",
+            "arn:aws:iam::123456789012:group/division_abc/subdivision_xyz/product_A/Developers",
+            "arn:aws:iam::123456789012:role/S3Access",
+            "arn:aws:iam::123456789012:role/application_abc/component_xyz/RDSAccess",
+            "arn:aws:iam::123456789012:role/aws-service-role/access-analyzer.amazonaws.com/AWSServiceRoleForAccessAnalyzer",
+            "arn:aws:iam::123456789012:role/service-role/QuickSightAction",
+            "arn:aws:iam::123456789012:policy/UsersManageOwnCredentials",
+            "arn:aws:iam::123456789012:policy/division_abc/subdivision_xyz/UsersManageOwnCredentials",
+            "arn:aws:iam::123456789012:instance-profile/Webserver",
+            "arn:aws:sts::123456789012:federated-user/JohnDoe",
+            "arn:aws:sts::123456789012:assumed-role/Accounting-Role/JaneDoe",
+            "arn:aws:iam::123456789012:mfa/JaneDoeMFA",
+            "arn:aws:iam::123456789012:u2f/user/JohnDoe/default",
+            "arn:aws:iam::123456789012:server-certificate/ProdServerCert",
+            "arn:aws:iam::123456789012:server-certificate/division_abc/subdivision_xyz/ProdServerCert",
+            "arn:aws:iam::123456789012:saml-provider/ADFSProvider",
+            "arn:aws:iam::123456789012:oidc-provider/GoogleProvider",
+            "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-west-2.amazonaws.com/id/a1b2c3d4567890abcdefEXAMPLE"
+        ];
+
+        for arn in valid_arns {
+            if let Err(e) = IamArn::validate_arn(arn) {
+                panic!("ARN validation failed for valid ARN: {}. Error: {}", arn, e);
+            }
+        }
+
+        // from an AWS POV they are supported, but we don't support them to avoid root account being passed for security reasons
+        let invalid_arns = vec![
+            "arn:aws:iam::123456789012:root",
+            "arn:aws:sts::123456789012:self",
+        ];
+
+        for arn in invalid_arns {
+            if let Err(e) = IamArn::validate_arn(arn) {
+                panic!(
+                    "ARN validation failed for invalid ARN: {}. Error: {}",
+                    arn, e
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn get_arn_user_test() {
+        let valid_arns = vec![
+            ("arn:aws:iam::123456789012:user/JohnDoe", "JohnDoe"),
+            (
+                "arn:aws:iam::123456789012:user/division_abc/subdivision_xyz/JaneDoe",
+                "JaneDoe",
+            ),
+            (
+                "arn:aws:sts::123456789012:federated-user/JohnDoe",
+                "JohnDoe",
+            ),
+        ];
+
+        for (arn, expected_user) in valid_arns {
+            let iam_arn = IamArn::new(arn);
+            let user = iam_arn.get_user().unwrap();
+            assert_eq!(expected_user, user.to_string());
+        }
+
+        let invalid_arns = vec![
+            (
+                "arn:aws:iam::123456789012:server-certificate/ProdServerCert",
+                "ProdServerCert",
+            ),
+            (
+                "arn:aws:iam::123456789012:server-certificate/division_abc/subdivision_xyz/ProdServerCert",
+                "ProdServerCert",
+            ),
+            (
+                "arn:aws:iam::123456789012:saml-provider/ADFSProvider",
+                "ADFSProvider",
+            ),
+            (
+                "arn:aws:iam::123456789012:oidc-provider/GoogleProvider",
+                "GoogleProvider",
+            ),
+        ];
+        for (arn, _expected_user) in invalid_arns {
+            let iam_arn = IamArn::new(arn);
+            assert!(iam_arn.get_user().is_err());
         }
     }
 }

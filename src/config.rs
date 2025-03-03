@@ -20,6 +20,8 @@ pub enum ConfigurationError {
     EmptySSORoleArn,
     #[error("Malformed SSO role ARN")]
     MalformedSSORoleArn,
+    #[error("Invalid ARN, {iam_arn}")]
+    InvalidArn { iam_arn: Arc<str> },
 }
 
 #[derive(Clone)]
@@ -106,6 +108,7 @@ pub enum KarpenterRoleConfig {
 pub struct Config {
     pub credentials: Credentials,
     pub refresh_interval: Duration,
+    pub admins_users: HashSet<IamArn>,
     pub group_user_sync_config: GroupUserSyncConfig,
     pub sso_role_config: SSORoleConfig,
     pub karpenter_config: KarpenterRoleConfig,
@@ -119,11 +122,22 @@ impl Config {
         refresh_interval: Duration,
         enable_group_sync: bool,
         iam_k8s_groups_mapping_raw: Vec<IamK8sGroupMappingsRaw>,
+        admins_iam_users: Option<String>,
         enable_sso: bool,
         iam_sso_role_arn: Option<String>,
         karpenter_role_arn: Option<String>,
         verbose: bool,
     ) -> Result<Config, ConfigurationError> {
+        // static admins IAM users
+        let mut admins_users = HashSet::new();
+        if let Some(users) = admins_iam_users {
+            let users_list = users.split(',').collect::<Vec<&str>>();
+
+            for u in users_list {
+                admins_users.insert(IamArn::new(u));
+            }
+        }
+
         // group user sync configuration
         let group_user_sync_config = match enable_group_sync {
             true => {
@@ -196,6 +210,7 @@ impl Config {
         Ok(Config {
             credentials,
             refresh_interval,
+            admins_users,
             group_user_sync_config,
             sso_role_config,
             karpenter_config: config,
@@ -317,6 +332,7 @@ mod tests {
                 Duration::from_secs(60),
                 false,
                 Vec::with_capacity(0),
+                None,
                 true,
                 Some(tc.input.to_string()),
                 None,
@@ -359,6 +375,7 @@ mod tests {
                 Duration::from_secs(60),
                 false,
                 Vec::with_capacity(0),
+                None,
                 true,
                 Some(tc.to_string()),
                 None,
@@ -384,6 +401,7 @@ mod tests {
             Duration::from_secs(60),
             false,
             Vec::with_capacity(0),
+            None,
             false,
             None,
             Some("arn:aws:iam::account_id:role/role_id".to_string()),

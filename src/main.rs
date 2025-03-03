@@ -45,6 +45,9 @@ struct Args {
     /// Refresh interval in seconds between two user synchronization, e.q: 30
     #[arg(short = 'i', long, env, default_value_t = 60)]
     pub refresh_interval_seconds: u64,
+    /// Add admins IAM users arn
+    #[arg(short = 'm', long, env, required = false)]
+    pub admins_users_arns: Option<String>,
     /// Activate group user sync (requires `iam_k8s_groups` to be set)
     #[clap(long, env, required = false, default_value_t = false)]
     pub enable_group_user_sync: bool,
@@ -110,41 +113,53 @@ impl GroupsMappings {
 async fn sync_iam_eks_users_and_roles(
     iam_client: &IamService,
     kubernetes_client: &KubernetesService,
+    admins_users: HashSet<IamArn>,
     groups_mappings: Option<&GroupsMappings>,
     sso_role: Option<KubernetesRole>,
     karpenter_config: Option<KubernetesRole>,
 ) -> Result<(), errors::Error> {
+    // create kubernetes users to be added as admins
+    let mut kubernetes_users = HashSet::new();
+    for arn in admins_users {
+        kubernetes_users.insert(KubernetesUser::new(
+            arn.get_user().map_err(|e| Error::Configuration {
+                underlying_error: e,
+            })?,
+            arn,
+            HashSet::from_iter(vec![KubernetesGroupName::new("system:masters")]),
+            Some(SyncedBy::IamEksUserMapper), // <- those users are managed by the tool
+        ));
+    }
+
     // create kubernetes users to be added
-    let kubernetes_users = match groups_mappings {
-        Some(gm) => {
-            // get users from AWS groups
-            let iam_users = iam_client
-                .get_users_from_groups(gm.iam_groups())
-                .await
-                .map_err(|e| Error::Aws {
-                    underlying_error: e.into(),
-                })?;
+    if let Some(gm) = groups_mappings {
+        let iam_users = iam_client
+            .get_users_from_groups(gm.iam_groups())
+            .await
+            .map_err(|e| Error::Aws {
+                underlying_error: e.into(),
+            })?;
 
-            info!("Found {} users in IAM groups", iam_users.len());
-
-            Some(HashSet::from_iter(iam_users.iter().map(|u| {
-                KubernetesUser::new(
-                    IamUserName::new(&u.user_name.to_string()),
-                    IamArn::new(&u.arn.to_string()),
-                    gm.k8s_group_for(u.groups.clone()),
-                    Some(SyncedBy::IamEksUserMapper), // <- those users are managed by the tool
-                )
-            })))
+        info!("Found {} users in IAM groups", iam_users.len());
+        for u in iam_users.iter() {
+            kubernetes_users.insert(KubernetesUser::new(
+                IamUserName::new(&u.user_name.to_string()),
+                IamArn::new(&u.arn.to_string()),
+                gm.k8s_group_for(u.groups.clone()),
+                Some(SyncedBy::IamEksUserMapper), // <- those users are managed by the tool
+            ));
         }
-        None => None,
-    };
+    }
 
     // create new users & roles config map
     kubernetes_client
         .update_user_and_role_config_map(
             "kube-system",
             "aws-auth",
-            kubernetes_users,
+            match kubernetes_users.is_empty() {
+                true => None,
+                false => Some(kubernetes_users),
+            },
             sso_role,
             karpenter_config,
         )
@@ -204,6 +219,7 @@ async fn main() -> Result<(), errors::Error> {
         Duration::from_secs(args.refresh_interval_seconds),
         args.enable_group_user_sync,
         args.iam_k8s_groups,
+        args.admins_users_arns,
         args.enable_sso,
         args.iam_sso_role_arn,
         args.karpenter_role_arn,
@@ -256,6 +272,7 @@ async fn main() -> Result<(), errors::Error> {
             if let Err(e) = sync_iam_eks_users_and_roles(
                 &iam_client,
                 &kubernetes_client,
+                config.admins_users.clone(),
                 groups_mappings.as_ref(),
                 sso_role.clone(),
                 karpenter_config.clone(),

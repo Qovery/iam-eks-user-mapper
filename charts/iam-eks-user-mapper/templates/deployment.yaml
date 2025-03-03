@@ -31,6 +31,10 @@ spec:
               value: "{{ .Values.refreshIntervalSeconds }}"
             - name: "SERVICE_ACCOUNT_NAME"
               value: "{{ .Values.serviceAccount.name }}"
+            {{ if .Values.adminsUsersArns.enabled }}
+            - name: "ADMINS_USERS_ARNS"
+              value: {{ include "iam-eks-user.adminsUsersArns" . | quote }}
+            {{ end }}
             - name: "ENABLE_GROUP_USER_SYNC"
               value: "{{ .Values.groupUsersSync.enabled }}"
             - name: "IAM_K8S_GROUPS"
