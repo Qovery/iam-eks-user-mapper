@@ -171,6 +171,9 @@ async fn sync_iam_eks_users_and_roles(
 
 #[tokio::main]
 async fn main() -> Result<(), errors::Error> {
+    rustls::crypto::CryptoProvider::install_default(rustls::crypto::aws_lc_rs::default_provider())
+        .expect("Cannot install rustls crypto provider");
+
     // Init tracing subscriber
     let subscriber = FmtSubscriber::builder()
         .with_env_filter(EnvFilter::from_default_env())
