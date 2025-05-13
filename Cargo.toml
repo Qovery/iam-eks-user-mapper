@@ -6,23 +6,23 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.5.31", features = ["derive", "env"] }
-humantime = "2.1.0"
-serde = "1.0.218"
-serde_yaml = "0.9.25"
-tokio = { version = "1.43.0", features = ["full"] }
-tokio-util = "0.7.13"
+clap = { version = "4.5.38", features = ["derive", "env"] }
+humantime = "2.2.0"
+serde = "1.0.219"
+serde_yaml = "0.9.34"
+tokio = { version = "1.45.0", features = ["full"] }
+tokio-util = "0.7.15"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-thiserror = "2.0.11"
+thiserror = "2.0.12"
 
 # Kubernetes
-kube = { version = "0.98.0", features = ["runtime", "derive", "ws"] }
-k8s-openapi = { version = "0.24.0", default-features = false, features = [
+kube = { version = "1.0.0", features = ["runtime", "derive", "ws"] }
+k8s-openapi = { version = "0.25.0", default-features = false, features = [
   "v1_30",
 ] }
 
 # AWS
-aws-config = "1.5.17"
-aws-sdk-iam = "1.63.0"
-aws-sdk-sts = "1.61.0"
+aws-config = "1.6.2"
+aws-sdk-iam = "1.71.0"
+aws-sdk-sts = "1.68.0"
