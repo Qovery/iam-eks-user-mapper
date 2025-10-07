@@ -6,22 +6,22 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.5.38", features = ["derive", "env"] }
-serde = "1.0.219"
+clap = { version = "4.5.48", features = ["derive", "env"] }
+serde = "1.0.228"
 serde_yaml = "0.9.34"
-tokio = { version = "1.45.0", features = ["full"] }
+tokio = { version = "1.47.1", features = ["full"] }
 tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-thiserror = "2.0.12"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
+thiserror = "2.0.17"
 
 # Kubernetes
-kube = { version = "1.0.0", default-features = false, features = ["runtime", "derive", "ws", "aws-lc-rs", "client", "rustls-tls", "gzip"] }
-k8s-openapi = { version = "0.25.0", default-features = false, features = [
+kube = { version = "2.0.1", default-features = false, features = ["runtime", "derive", "ws", "aws-lc-rs", "client", "rustls-tls", "gzip"] }
+k8s-openapi = { version = "0.26.0", default-features = false, features = [
   "v1_30",
 ] }
-rustls = { version = "0.23.27" }
+rustls = { version = "0.23.32" }
 
 # AWS
-aws-config = "1.6.2"
-aws-sdk-iam = "1.71.0"
-aws-sdk-sts = "1.68.0"
+aws-config = "1.8.7"
+aws-sdk-iam = "1.90.0"
+aws-sdk-sts = "1.87.0"
