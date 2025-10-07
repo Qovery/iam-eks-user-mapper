@@ -24,7 +24,7 @@ jobs:
     permissions:
       contents: none
     name: build
-    needs: [test, msrv, docs, rustfmt, clippy]
+    needs: [test, docs, rustfmt, clippy]
     runs-on: ubuntu-latest
     steps:
       - name: Done
@@ -35,7 +35,7 @@ jobs:
     strategy:
       matrix:
         os: ["ubuntu-latest"]
-        rust: ["stable"]
+        rust: ["1.90"]
     continue-on-error: ${{ matrix.rust != 'stable' }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -55,24 +55,6 @@ jobs:
       - name: no-default features
         run: cargo test --workspace --no-default-features
 
-  msrv:
-    name: "check MSRV: 1.85.0"
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout repository
-        uses: actions/checkout@v3
-      - name: install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.85.0 # MSRV
-      - uses: Swatinem/rust-cache@v2
-      - name: default features
-        run: cargo check --workspace --all-targets
-      - name: all features
-        run: cargo check --workspace --all-targets --all-features
-      - name: No-default features
-        run: cargo check --workspace --all-targets --no-default-features
-
   lockfile:
     runs-on: ubuntu-latest
     steps:
@@ -81,7 +63,7 @@ jobs:
       - name: install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: 1.90
       - uses: Swatinem/rust-cache@v2
       - name: "Is lockfile updated?"
         run: cargo fetch --locked
@@ -95,7 +77,7 @@ jobs:
       - name: install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
+          toolchain: 1.90
       - uses: Swatinem/rust-cache@v2
       - name: check documentation
         env:
@@ -113,7 +95,7 @@ jobs:
         with:
           # Not MSRV because its harder to jump between versions and people are
           # more likely to have stable
-          toolchain: stable
+          toolchain: 1.90
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
       - name: check formatting
@@ -130,7 +112,7 @@ jobs:
       - name: install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.85.0 # MSRV
+          toolchain: 1.90
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - name: install SARIF tools

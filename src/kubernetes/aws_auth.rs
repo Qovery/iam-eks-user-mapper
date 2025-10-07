@@ -102,9 +102,7 @@ impl From<AwsAuth> for AwsAuthBuilder {
 #[cfg(test)]
 mod tests {
     use crate::kubernetes::aws_auth::AwsAuthBuilder;
-    use crate::kubernetes::{
-        IamArn, IamUserName, KubernetesGroupName, KubernetesRole, KubernetesUser, SyncedBy,
-    };
+    use crate::kubernetes::{IamArn, IamUserName, KubernetesGroupName, KubernetesRole, KubernetesUser, SyncedBy};
     use std::collections::HashSet;
 
     #[test]
@@ -443,18 +441,16 @@ mod tests {
                     ]),
                     Some(SyncedBy::IamEksUserMapper),
                 )]),
-                expected_roles: HashSet::from_iter(vec![
-                    KubernetesRole::new(
-                        IamArn::new("arn:::::role_1"),
-                        Some("role_1".to_string()),
-                        None,
-                        HashSet::from_iter(vec![
-                            KubernetesGroupName::new("group_1"),
-                            KubernetesGroupName::new("group_2"),
-                        ]),
-                        Some(SyncedBy::IamEksUserMapper),
-                    ),
-                ]),
+                expected_roles: HashSet::from_iter(vec![KubernetesRole::new(
+                    IamArn::new("arn:::::role_1"),
+                    Some("role_1".to_string()),
+                    None,
+                    HashSet::from_iter(vec![
+                        KubernetesGroupName::new("group_1"),
+                        KubernetesGroupName::new("group_2"),
+                    ]),
+                    Some(SyncedBy::IamEksUserMapper),
+                )]),
                 _description: "case 5: existing role without synced by flag, same new role with new synced by field",
             },
         ];

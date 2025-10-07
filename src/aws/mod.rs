@@ -16,9 +16,7 @@ pub enum AwsError {
 
 impl From<IamError> for AwsError {
     fn from(e: IamError) -> Self {
-        AwsError::IamError {
-            underlying_error: e,
-        }
+        AwsError::IamError { underlying_error: e }
     }
 }
 
@@ -29,8 +27,7 @@ pub struct AwsSdkConfig {
 
 impl AwsSdkConfig {
     pub async fn new(region: String, verbose: bool) -> Result<AwsSdkConfig, AwsError> {
-        let region_provider =
-            RegionProviderChain::first_try(Region::new(region)).or_default_provider();
+        let region_provider = RegionProviderChain::first_try(Region::new(region)).or_default_provider();
 
         let config = aws_config::defaults(BehaviorVersion::latest())
             .region(region_provider)

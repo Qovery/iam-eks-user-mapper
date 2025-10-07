@@ -68,15 +68,6 @@ impl Display for IamUserName {
     }
 }
 
-#[derive(Eq, PartialEq)]
-pub struct IamRoleName(String);
-
-impl Display for IamRoleName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0.as_str())
-    }
-}
-
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct IamArn(String);
 
@@ -192,9 +183,7 @@ impl Hash for KubernetesUser {
 
 impl PartialEq for KubernetesUser {
     fn eq(&self, other: &Self) -> bool {
-        self.roles == other.roles
-            && self.iam_arn == other.iam_arn
-            && self.iam_user_name == other.iam_user_name
+        self.roles == other.roles && self.iam_arn == other.iam_arn && self.iam_user_name == other.iam_user_name
     }
 }
 
@@ -338,16 +327,13 @@ pub struct KubernetesService {
 
 impl KubernetesService {
     pub async fn new() -> Result<KubernetesService, KubernetesError> {
-        let kube_client =
-            Client::try_default()
-                .await
-                .map_err(|e| KubernetesError::ClusterUnreachable {
-                    raw_message: Arc::from(e.to_string()),
-                })?;
+        let kube_client = Client::try_default()
+            .await
+            .map_err(|e| KubernetesError::ClusterUnreachable {
+                raw_message: Arc::from(e.to_string()),
+            })?;
 
-        Ok(KubernetesService {
-            client: kube_client,
-        })
+        Ok(KubernetesService { client: kube_client })
     }
 
     fn generate_users_config_map_yaml_string(
@@ -386,66 +372,56 @@ impl KubernetesService {
         kubernetes_sso_role_to_be_added: Option<KubernetesRole>,
         karpenter_role_to_be_added: Option<KubernetesRole>,
     ) -> Result<(), KubernetesError> {
-        let config_maps_api: Api<ConfigMap> =
-            Api::namespaced(self.client.clone(), config_map_namespace); // TODO(benjaminch): avoid clone()
+        let config_maps_api: Api<ConfigMap> = Api::namespaced(self.client.clone(), config_map_namespace); // TODO(benjaminch): avoid clone()
 
         // get config map
-        let mut users_config_map = config_maps_api.get(config_map_name).await.map_err(|e| {
-            KubernetesError::ConfigMapNotFound {
-                config_map_name: Arc::from(config_map_name),
-                config_map_namespace: Arc::from(config_map_namespace),
-                raw_message: Arc::from(e.to_string()),
-            }
-        })?;
+        let mut users_config_map =
+            config_maps_api
+                .get(config_map_name)
+                .await
+                .map_err(|e| KubernetesError::ConfigMapNotFound {
+                    config_map_name: Arc::from(config_map_name),
+                    config_map_namespace: Arc::from(config_map_namespace),
+                    raw_message: Arc::from(e.to_string()),
+                })?;
 
         // update config map
         let mut default_config_map_data = BTreeMap::new();
-        let config_map_data = users_config_map
-            .data
-            .as_mut()
-            .unwrap_or(&mut default_config_map_data);
+        let config_map_data = users_config_map.data.as_mut().unwrap_or(&mut default_config_map_data);
 
         let aws_auth = AwsAuthBuilder::new(
             // get existing users from configmap
             match config_map_data.get("mapUsers") {
                 None => HashSet::with_capacity(0),
                 Some(kubernetes_existing_users_raw_yaml) => HashSet::from_iter(
-                    serde_yaml::from_str::<HashSet<MapUserConfig>>(
-                        kubernetes_existing_users_raw_yaml,
-                    )
-                    .map_err(|e| KubernetesError::CannotDeserializeUsersMap {
-                        raw_message: Arc::from(kubernetes_existing_users_raw_yaml.as_str()),
-                        underlying_error: Arc::from(e.to_string().as_str()),
-                    })?
-                    .into_iter()
-                    .map(KubernetesUser::from)
-                    .collect::<Vec<_>>(),
+                    serde_yaml::from_str::<HashSet<MapUserConfig>>(kubernetes_existing_users_raw_yaml)
+                        .map_err(|e| KubernetesError::CannotDeserializeUsersMap {
+                            raw_message: Arc::from(kubernetes_existing_users_raw_yaml.as_str()),
+                            underlying_error: Arc::from(e.to_string().as_str()),
+                        })?
+                        .into_iter()
+                        .map(KubernetesUser::from)
+                        .collect::<Vec<_>>(),
                 ),
             },
             // get existing roles from configmap
             match config_map_data.get("mapRoles") {
                 None => HashSet::with_capacity(0),
                 Some(kubernetes_existing_roles_raw_yaml) => HashSet::from_iter(
-                    serde_yaml::from_str::<HashSet<MapRoleConfig>>(
-                        kubernetes_existing_roles_raw_yaml,
-                    )
-                    .map_err(|e| KubernetesError::CannotDeserializeRolesMap {
-                        raw_message: Arc::from(kubernetes_existing_roles_raw_yaml.as_str()),
-                        underlying_error: Arc::from(e.to_string().as_str()),
-                    })?
-                    .into_iter()
-                    .map(|r| KubernetesRole {
-                        role_name: r.rolename.clone(),
-                        user_name: r.username.clone(),
-                        iam_role_arn: IamArn(r.role_arn.to_string()),
-                        groups: r
-                            .groups
-                            .iter()
-                            .map(|g| KubernetesGroupName(g.to_string()))
-                            .collect(),
-                        synced_by: r.synced_by.clone(),
-                    })
-                    .collect::<Vec<_>>(),
+                    serde_yaml::from_str::<HashSet<MapRoleConfig>>(kubernetes_existing_roles_raw_yaml)
+                        .map_err(|e| KubernetesError::CannotDeserializeRolesMap {
+                            raw_message: Arc::from(kubernetes_existing_roles_raw_yaml.as_str()),
+                            underlying_error: Arc::from(e.to_string().as_str()),
+                        })?
+                        .into_iter()
+                        .map(|r| KubernetesRole {
+                            role_name: r.rolename.clone(),
+                            user_name: r.username.clone(),
+                            iam_role_arn: IamArn(r.role_arn.to_string()),
+                            groups: r.groups.iter().map(|g| KubernetesGroupName(g.to_string())).collect(),
+                            synced_by: r.synced_by.clone(),
+                        })
+                        .collect::<Vec<_>>(),
                 ),
             },
         )
@@ -491,8 +467,8 @@ impl KubernetesService {
 #[cfg(test)]
 mod tests {
     use crate::kubernetes::{
-        IamArn, IamUserName, KubernetesError, KubernetesGroupName, KubernetesRole,
-        KubernetesService, KubernetesUser, MapRoleConfig, MapUserConfig, SyncedBy,
+        IamArn, IamUserName, KubernetesError, KubernetesGroupName, KubernetesRole, KubernetesService, KubernetesUser,
+        MapRoleConfig, MapUserConfig, SyncedBy,
     };
     use std::collections::HashSet;
 
@@ -784,17 +760,11 @@ mod tests {
         }
 
         // from an AWS POV they are supported, but we don't support them to avoid root account being passed for security reasons
-        let invalid_arns = vec![
-            "arn:aws:iam::123456789012:root",
-            "arn:aws:sts::123456789012:self",
-        ];
+        let invalid_arns = vec!["arn:aws:iam::123456789012:root", "arn:aws:sts::123456789012:self"];
 
         for arn in invalid_arns {
             if let Err(e) = IamArn::validate_arn(arn) {
-                panic!(
-                    "ARN validation failed for invalid ARN: {}. Error: {}",
-                    arn, e
-                );
+                panic!("ARN validation failed for invalid ARN: {}. Error: {}", arn, e);
             }
         }
     }
@@ -807,10 +777,7 @@ mod tests {
                 "arn:aws:iam::123456789012:user/division_abc/subdivision_xyz/JaneDoe",
                 "JaneDoe",
             ),
-            (
-                "arn:aws:sts::123456789012:federated-user/JohnDoe",
-                "JohnDoe",
-            ),
+            ("arn:aws:sts::123456789012:federated-user/JohnDoe", "JohnDoe"),
         ];
 
         for (arn, expected_user) in valid_arns {
@@ -828,10 +795,7 @@ mod tests {
                 "arn:aws:iam::123456789012:server-certificate/division_abc/subdivision_xyz/ProdServerCert",
                 "ProdServerCert",
             ),
-            (
-                "arn:aws:iam::123456789012:saml-provider/ADFSProvider",
-                "ADFSProvider",
-            ),
+            ("arn:aws:iam::123456789012:saml-provider/ADFSProvider", "ADFSProvider"),
             (
                 "arn:aws:iam::123456789012:oidc-provider/GoogleProvider",
                 "GoogleProvider",
