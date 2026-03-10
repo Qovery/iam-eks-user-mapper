@@ -102,7 +102,9 @@ impl From<AwsAuth> for AwsAuthBuilder {
 #[cfg(test)]
 mod tests {
     use crate::kubernetes::aws_auth::AwsAuthBuilder;
-    use crate::kubernetes::{IamArn, IamUserName, KubernetesGroupName, KubernetesRole, KubernetesUser, SyncedBy};
+    use crate::kubernetes::{
+        IamArn, IamUserName, KubernetesGroupName, KubernetesRole, KubernetesUser, SyncedBy,
+    };
     use std::collections::HashSet;
 
     #[test]

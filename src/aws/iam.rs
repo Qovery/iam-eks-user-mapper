@@ -8,7 +8,10 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum IamError {
     #[error("Cannot get users from IAM group `{group}`, error: {raw_message}")]
-    CannotGetUserFromIamGroup { group: IamGroup, raw_message: Arc<str> },
+    CannotGetUserFromIamGroup {
+        group: IamGroup,
+        raw_message: Arc<str>,
+    },
     #[error("No users found in IAM group `{group}`")]
     NoUsersFoundInIamGroup { group: IamGroup },
 }
@@ -85,7 +88,10 @@ impl IamService {
         }
     }
 
-    pub async fn get_users_from_groups(&self, iam_groups: HashSet<IamGroup>) -> Result<HashSet<AwsUser>, IamError> {
+    pub async fn get_users_from_groups(
+        &self,
+        iam_groups: HashSet<IamGroup>,
+    ) -> Result<HashSet<AwsUser>, IamError> {
         let mut all_users = HashSet::new();
 
         for iam_group in iam_groups {
@@ -98,7 +104,10 @@ impl IamService {
         Ok(all_users)
     }
 
-    pub async fn get_users_from_group(&self, iam_group: &IamGroup) -> Result<HashSet<AwsUser>, IamError> {
+    pub async fn get_users_from_group(
+        &self,
+        iam_group: &IamGroup,
+    ) -> Result<HashSet<AwsUser>, IamError> {
         let mut users: HashSet<AwsUser> = HashSet::new();
 
         match self
