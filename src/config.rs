@@ -45,7 +45,11 @@ pub enum CredentialsMode {
 }
 
 impl Credentials {
-    pub fn new(region: Region, service_account_name: String, credentials_mode: CredentialsMode) -> Credentials {
+    pub fn new(
+        region: Region,
+        service_account_name: String,
+        credentials_mode: CredentialsMode,
+    ) -> Credentials {
         Credentials {
             region,
             _service_account_name: service_account_name,
@@ -162,16 +166,17 @@ impl Config {
                 // Sanitize IAM ARN for the role, removing the part before the role name
                 // E.g: arn:aws:iam::8432375466567:role/aws-reserved/sso.amazonaws.com/us-east-2/AWSReservedSSO_AdministratorAccess_53b82e109c5e2cac
                 // becomes => arn:aws:iam::8432375466567:role/AWSReservedSSO_AdministratorAccess_53b82e109c5e2cac
-                let sanitized_role_arn = match (iam_sso_role_arn.find(":role/"), iam_sso_role_arn.rfind('/')) {
-                    (Some(start_index), Some(stop_index)) => IamArn::new(
-                        &iam_sso_role_arn
-                            .chars()
-                            .take(start_index + ":role/".len())
-                            .chain(iam_sso_role_arn.chars().skip(stop_index + 1))
-                            .collect::<String>(),
-                    ),
-                    _ => return Err(ConfigurationError::MalformedSSORoleArn),
-                };
+                let sanitized_role_arn =
+                    match (iam_sso_role_arn.find(":role/"), iam_sso_role_arn.rfind('/')) {
+                        (Some(start_index), Some(stop_index)) => IamArn::new(
+                            &iam_sso_role_arn
+                                .chars()
+                                .take(start_index + ":role/".len())
+                                .chain(iam_sso_role_arn.chars().skip(stop_index + 1))
+                                .collect::<String>(),
+                        ),
+                        _ => return Err(ConfigurationError::MalformedSSORoleArn),
+                    };
 
                 SSORoleConfig::Enabled {
                     sso_role: KubernetesRole::new(
@@ -220,7 +225,8 @@ impl Config {
 mod tests {
     use crate::aws::iam::IamGroup;
     use crate::config::{
-        Config, ConfigurationError, Credentials, CredentialsMode, IamK8sGroup, KarpenterRoleConfig, SSORoleConfig,
+        Config, ConfigurationError, Credentials, CredentialsMode, IamK8sGroup, KarpenterRoleConfig,
+        SSORoleConfig,
     };
     use crate::kubernetes::{IamArn, KubernetesGroupName};
     use std::str::FromStr;

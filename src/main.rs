@@ -8,7 +8,8 @@ use crate::aws::AwsSdkConfig;
 use crate::config::{Credentials, GroupUserSyncConfig, IamK8sGroup, SSORoleConfig};
 use crate::errors::Error;
 use crate::kubernetes::{
-    IamArn, IamUserName, KubernetesGroupName, KubernetesRole, KubernetesService, KubernetesUser, SyncedBy,
+    IamArn, IamUserName, KubernetesGroupName, KubernetesRole, KubernetesService, KubernetesUser,
+    SyncedBy,
 };
 use clap::{ArgGroup, Parser};
 use config::CredentialsMode;
@@ -78,7 +79,11 @@ struct GroupsMappings {
 impl GroupsMappings {
     fn new(iam_k8s_groups: Vec<IamK8sGroup>) -> GroupsMappings {
         GroupsMappings {
-            raw: HashMap::from_iter(iam_k8s_groups.into_iter().map(|m| (m.iam_group, m.k8s_group))),
+            raw: HashMap::from_iter(
+                iam_k8s_groups
+                    .into_iter()
+                    .map(|m| (m.iam_group, m.k8s_group)),
+            ),
         }
     }
 
@@ -93,7 +98,9 @@ impl GroupsMappings {
             k8s_groups.insert(
                 self.raw
                     .get(&iam_group)
-                    .unwrap_or_else(|| panic!("K8s group mapping is not found for IAM group `{iam_group}`"))
+                    .unwrap_or_else(|| {
+                        panic!("K8s group mapping is not found for IAM group `{iam_group}`")
+                    })
                     .clone(),
             );
             // should never fails by design
@@ -115,8 +122,9 @@ async fn sync_iam_eks_users_and_roles(
     let mut kubernetes_users = HashSet::new();
     for arn in admins_users {
         kubernetes_users.insert(KubernetesUser::new(
-            arn.get_user()
-                .map_err(|e| Error::Configuration { underlying_error: e })?,
+            arn.get_user().map_err(|e| Error::Configuration {
+                underlying_error: e,
+            })?,
             arn,
             HashSet::from_iter(vec![KubernetesGroupName::new("system:masters")]),
             Some(SyncedBy::IamEksUserMapper), // <- those users are managed by the tool
@@ -156,7 +164,9 @@ async fn sync_iam_eks_users_and_roles(
             karpenter_config,
         )
         .await
-        .map_err(|e| Error::Kubernetes { underlying_error: e })
+        .map_err(|e| Error::Kubernetes {
+            underlying_error: e,
+        })
 }
 
 #[tokio::main]
@@ -168,13 +178,18 @@ async fn main() -> Result<(), errors::Error> {
     let subscriber = FmtSubscriber::builder()
         .with_env_filter(EnvFilter::from_default_env())
         .fmt_fields(
-            tracing_subscriber::fmt::format::debug_fn(|writer, field, value| write!(writer, "{field}: {value:?}"))
-                .delimited(", "),
+            tracing_subscriber::fmt::format::debug_fn(|writer, field, value| {
+                write!(writer, "{field}: {value:?}")
+            })
+            .delimited(", "),
         )
         .with_ansi(true)
         .finish();
-    tracing::subscriber::set_global_default(subscriber)
-        .map_err(|e| Error::InitializationErrorCannotSetupTracing { underlying_error: e })?;
+    tracing::subscriber::set_global_default(subscriber).map_err(|e| {
+        Error::InitializationErrorCannotSetupTracing {
+            underlying_error: e,
+        }
+    })?;
 
     let span = span!(Level::INFO, "main_span");
     let _enter = span.enter();
@@ -196,7 +211,11 @@ async fn main() -> Result<(), errors::Error> {
         panic!("Bad configuration");
     };
 
-    let credentials = Credentials::new(args.aws_default_region, args.service_account_name, credentials_mode);
+    let credentials = Credentials::new(
+        args.aws_default_region,
+        args.service_account_name,
+        credentials_mode,
+    );
 
     let config = config::Config::new(
         credentials,
@@ -209,17 +228,23 @@ async fn main() -> Result<(), errors::Error> {
         args.karpenter_role_arn,
         args.verbose,
     )
-    .map_err(|e| Error::Configuration { underlying_error: e })?;
+    .map_err(|e| Error::Configuration {
+        underlying_error: e,
+    })?;
 
     let aws_config = AwsSdkConfig::new(config.credentials.region, config.verbose)
         .await
-        .map_err(|e| Error::Aws { underlying_error: e })?;
+        .map_err(|e| Error::Aws {
+            underlying_error: e,
+        })?;
 
     let iam_client = IamService::new(&aws_config, config.verbose);
 
     let kubernetes_client = KubernetesService::new()
         .await
-        .map_err(|e| Error::Kubernetes { underlying_error: e })?;
+        .map_err(|e| Error::Kubernetes {
+            underlying_error: e,
+        })?;
 
     let current_span = tracing::Span::current();
     let forever = task::spawn(async move {
@@ -229,7 +254,9 @@ async fn main() -> Result<(), errors::Error> {
 
         let groups_mappings = match config.group_user_sync_config {
             GroupUserSyncConfig::Disabled => None,
-            GroupUserSyncConfig::Enabled { iam_k8s_groups } => Some(GroupsMappings::new(iam_k8s_groups)),
+            GroupUserSyncConfig::Enabled { iam_k8s_groups } => {
+                Some(GroupsMappings::new(iam_k8s_groups))
+            }
         };
 
         let sso_role = match config.sso_role_config {
