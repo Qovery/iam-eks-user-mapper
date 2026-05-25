@@ -1,8 +1,6 @@
-FROM public.ecr.aws/r3m4q3r9/qovery-ci:rust-1.89.0-2025-08-27T14-44-06 as build
+FROM public.ecr.aws/r3m4q3r9/qovery-ci:rust-1.95.0-2026-05-15T10-46-32 as build
 
 RUN apt-key del 234654DA9A296436 || true
-RUN curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | gpg --dearmor -o /usr/share/keyrings/kubernetes-archive-keyring.gpg
-RUN echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb /" | tee /etc/apt/sources.list.d/kubernetes.list
 
 RUN apt-get update && \
   apt-get install -y librust-openssl-sys-dev curl && \
