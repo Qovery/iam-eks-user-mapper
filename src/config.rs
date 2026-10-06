@@ -145,10 +145,8 @@ impl Config {
             true => {
                 let mut iam_k8s_groups = Vec::with_capacity(iam_k8s_groups_mapping_raw.len());
                 for mapping in iam_k8s_groups_mapping_raw {
-                    match IamK8sGroup::from_str(&mapping) {
-                        Ok(g) => iam_k8s_groups.push(g),
-                        Err(e) => return Err(e),
-                    }
+                    let g = IamK8sGroup::from_str(&mapping)?;
+                    iam_k8s_groups.push(g);
                 }
                 GroupUserSyncConfig::Enabled { iam_k8s_groups }
             }
