@@ -20,29 +20,56 @@ stages:
   - build
   - release
 
+# Resource allocation templates for k8s-runner. The runner has no CPU limit, so
+# Cargo would size -j from the node's core count: CARGO_BUILD_JOBS pins it to the
+# CPU request so the rustc processes fit in the memory limit.
+.resources-check:
+  variables:
+    KUBERNETES_CPU_REQUEST: "1"
+    KUBERNETES_MEMORY_REQUEST: "2Gi"
+    KUBERNETES_MEMORY_LIMIT: "2Gi"
+    CARGO_BUILD_JOBS: "1"
+
+.resources-build:
+  variables:
+    KUBERNETES_CPU_REQUEST: "3"
+    KUBERNETES_MEMORY_REQUEST: "8Gi"
+    KUBERNETES_MEMORY_LIMIT: "8Gi"
+    KUBERNETES_EPHEMERAL_STORAGE_REQUEST: "10Gi"
+    CARGO_BUILD_JOBS: "3"
+
+.resources-image:
+  variables:
+    KUBERNETES_CPU_REQUEST: "250m"
+    KUBERNETES_MEMORY_REQUEST: "1Gi"
+    KUBERNETES_MEMORY_LIMIT: "1Gi"
+
 audit:
   stage: prechecks
+  extends: [.resources-check]
   script:
     - cargo audit
   interruptible: true
   allow_failure: true
   tags:
-    - vm-1cpu-2gmem-0g
+    - k8s-runner
   only:
     - main
 
 format:
   stage: prechecks
+  extends: [.resources-check]
   script:
     - cargo fmt -- --check
   interruptible: true
   tags:
-    - vm-1cpu-2gmem-0g
+    - k8s-runner
   only:
     - main
 
 coverage:
   stage: build
+  extends: [.resources-build]
   script:
     - cargo tarpaulin --out Xml
   coverage: '/^\d+.\d+% coverage/'
@@ -53,37 +80,43 @@ coverage:
         path: cobertura.xml
   interruptible: true
   tags:
-    - vm-3cpu-4gmem-0g
+    - k8s-runner
   only:
     - main
 
 lint-test:
   stage: build
+  extends: [.resources-build]
   script:
     - cargo clippy --all --all-features -- -D warnings
     - cargo test
   interruptible: true
   tags:
-    - vm-3cpu-4gmem-0g
+    - k8s-runner
   only:
     - main
 
 build-image:
   stage: release
+  extends: [.resources-image]
+  # The builder name is also the name of the buildkit Deployment in the shared `gitlab`
+  # namespace: the pipeline id keeps concurrent pipelines off each other's builder.
   before_script:
-    - ci_helper init_buildkit_builder "${CI_JOB_NAME}" 4 7
+    - ci_helper init_buildkit_builder "${CI_JOB_NAME}-${CI_PIPELINE_ID}" 4 7
     - ci_helper docker_login_public_prod_ecr
   after_script:
-    - ci_helper teardown_buildkit_builder "${CI_JOB_NAME}"
+    - ci_helper teardown_buildkit_builder "${CI_JOB_NAME}-${CI_PIPELINE_ID}"
   script:
     - |-
-      eval $(ci_helper print_aws_ctx 'CI_BUILDER')
+      eval $(ci_helper print_buildkit_env)
       docker buildx build --platform=linux/amd64,linux/arm64 \
         -t $DOCKER_IMAGE_NAME:$IMAGE_TAG_NAME \
         --push .
   interruptible: true
   when: manual
+  # The buildx builder talks to Kubernetes through the pod's service account, so this
+  # job only works on the k8s runners.
   tags:
-    - vm-250mcpu-1gmem-0g
+    - k8s-runner
   only:
     - main
