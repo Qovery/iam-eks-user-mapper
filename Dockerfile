@@ -3,7 +3,7 @@
 # https://github.com/rust-secure-code/cargo-auditable/releases
 ARG CARGO_AUDITABLE_VERSION=0.7.7
 
-FROM public.ecr.aws/r3m4q3r9/qovery-ci:rust-1.98.1-2026-10-15T13-47-13 as build
+FROM public.ecr.aws/r3m4q3r9/qovery-ci:rust-1.98.1-2026-10-29T11-57-17 as build
 
 ARG CARGO_AUDITABLE_VERSION
 
