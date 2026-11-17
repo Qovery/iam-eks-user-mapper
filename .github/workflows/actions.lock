@@ -24,14 +24,14 @@ workflows:
     '.github/workflows/pre-commit.yml':
         - 'actions/checkout@v3.7.0'
         - 'actions/setup-python@v4.9.1'
-        - 'pre-commit/action@v3.0.0'
+        - 'pre-commit/action@v3.0.1'
     '.github/workflows/spelling.yml':
         - 'actions/checkout@v3.7.0'
         - 'crate-ci/typos@master'
 dependencies:
-    'actions/cache@v3':
-        ref: 'v3'
-        commit: 'sha1-6f8efc29b200d32929f49075959781ed54ec270c'
+    'actions/cache@v4':
+        ref: 'v4'
+        commit: 'sha1-0057852bfaa89a56745cba8c7296529d2fc39830'
         owner_id: 44036562
         repo_id: 215566462
     'actions/checkout@v2.8.0':
@@ -84,13 +84,13 @@ dependencies:
         commit: 'sha1-b8d3b6e8af63cde30bdc382c0bc28114f4346c88'
         owner_id: 9919
         repo_id: 259445878
-    'pre-commit/action@v3.0.0':
-        ref: 'v3.0.0'
-        commit: 'sha1-646c83fcd040023954eafda54b4db0192ce70507'
+    'pre-commit/action@v3.0.1':
+        ref: 'v3.0.1'
+        commit: 'sha1-2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd'
         owner_id: 6943086
         repo_id: 204199630
         uses:
-            - 'actions/cache@v3'
+            - 'actions/cache@v4'
     'stefanprodan/helm-gh-pages@master':
         ref: 'master'
         commit: 'sha1-89c6698c192e70ed0e495bee7d3d1ca5b477fe82'
