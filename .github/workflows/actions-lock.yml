@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.7.0
+        uses: actions/checkout@v7.0.1
 
       # Pinned so the guard itself isn't fetched from a mutable "latest".
       - name: Install gh-actions-lock
