@@ -40,12 +40,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.7.0
       - name: install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2.9.3
       - name: build
         run: cargo test --no-run --workspace --all-features
       - name: default features
@@ -59,12 +59,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.7.0
       - name: install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2.9.3
       - name: "Is lockfile updated?"
         run: cargo fetch --locked
 
@@ -73,12 +73,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.7.0
       - name: install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2.9.3
       - name: check documentation
         env:
           RUSTDOCFLAGS: -D warnings
@@ -89,7 +89,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.7.0
       - name: install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -97,7 +97,7 @@ jobs:
           # more likely to have stable
           toolchain: stable
           components: rustfmt
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2.9.3
       - name: check formatting
         run: cargo fmt --all -- --check
 
@@ -108,13 +108,13 @@ jobs:
       security-events: write # to upload sarif results
     steps:
       - name: checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.7.0
       - name: install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           components: clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2.9.3
       - name: install SARIF tools
         run: cargo install clippy-sarif
       - name: install SARIF tools
