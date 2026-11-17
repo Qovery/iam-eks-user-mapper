@@ -23,7 +23,7 @@ workflows:
         - 'stefanprodan/helm-gh-pages@master'
     '.github/workflows/pre-commit.yml':
         - 'actions/checkout@v3.7.0'
-        - 'actions/setup-python@v4.9.1'
+        - 'actions/setup-python@v7.1.0'
         - 'pre-commit/action@v3.0.0'
     '.github/workflows/spelling.yml':
         - 'actions/checkout@v3.7.0'
@@ -44,9 +44,9 @@ dependencies:
         commit: 'sha1-a37ce9120846195fa4ece8f58b268e6043cb2f26'
         owner_id: 44036562
         repo_id: 197814629
-    'actions/setup-python@v4.9.1':
-        ref: 'v4.9.1'
-        commit: 'sha1-7f4fc3e22c37d6ff65e88745f38bd3157c663f7c'
+    'actions/setup-python@v7.1.0':
+        ref: 'v7.1.0'
+        commit: 'sha1-6d4fd22b20465ccc0f7354476588e8df7c9ca0e0'
         owner_id: 44036562
         repo_id: 192625525
     'crate-ci/committed@main':
