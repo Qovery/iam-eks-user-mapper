@@ -40,7 +40,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: checkout repository
-        uses: actions/checkout@v3.7.0
+        uses: actions/checkout@v7.0.1
       - name: install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repository
-        uses: actions/checkout@v3.7.0
+        uses: actions/checkout@v7.0.1
       - name: install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repository
-        uses: actions/checkout@v3.7.0
+        uses: actions/checkout@v7.0.1
       - name: install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -89,7 +89,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repository
-        uses: actions/checkout@v3.7.0
+        uses: actions/checkout@v7.0.1
       - name: install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -108,7 +108,7 @@ jobs:
       security-events: write # to upload sarif results
     steps:
       - name: checkout repository
-        uses: actions/checkout@v3.7.0
+        uses: actions/checkout@v7.0.1
       - name: install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
